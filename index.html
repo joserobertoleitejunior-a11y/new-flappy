@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>New Flappy 3D</title>
+    <meta
+      name="description"
+      content="Jogo mobile estilo Flappy Bird em 3D — toque na tela para voar entre os obstáculos."
+    />
+    <meta name="theme-color" content="#7ec8f2" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas" aria-label="Área do jogo New Flappy 3D"></canvas>
+
+      <header id="hud" aria-live="polite">
+        <span id="hud-score">0</span>
+        <span id="hud-best">Recorde: 0</span>
+      </header>
+
+      <section id="screen-menu" class="screen" role="region" aria-label="Menu inicial">
+        <h1>New Flappy 3D</h1>
+        <p>Toque na tela para bater as asas e desviar dos obstáculos.</p>
+        <button id="btn-play" type="button">Jogar</button>
+        <button id="btn-shop" type="button">Loja de skins</button>
+      </section>
+
+      <section id="screen-gameover" class="screen hidden" role="region" aria-label="Fim de jogo">
+        <h2>Fim de jogo</h2>
+        <p id="gameover-score">Pontuação: 0</p>
+        <p id="gameover-best">Recorde: 0</p>
+        <button id="btn-retry" type="button">Tentar de novo</button>
+        <button id="btn-continue" type="button" class="hidden">Continuar (anúncio)</button>
+        <button id="btn-menu" type="button">Menu</button>
+      </section>
+
+      <section id="screen-shop" class="screen hidden" role="region" aria-label="Loja de skins">
+        <h2>Loja de skins</h2>
+        <div id="shop-list"></div>
+        <button id="btn-shop-close" type="button">Voltar</button>
+      </section>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
