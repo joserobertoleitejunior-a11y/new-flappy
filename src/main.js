@@ -14,6 +14,7 @@ const game = new GameManager(canvas, {
     const { best } = saveScoreIfBest(score);
     hud.showGameOverSummary(score, best);
     hud.setBest(best);
+    hud.setContinueAvailable(!game.continueUsedThisRun);
   },
 });
 
@@ -30,6 +31,10 @@ document.getElementById("btn-shop-close").addEventListener("click", () => game.r
 document.getElementById("btn-mute").addEventListener("click", () => {
   game.audio.unlock();
   hud.setMuted(game.audio.toggleMuted());
+});
+document.getElementById("btn-continue").addEventListener("click", async () => {
+  const resumed = await game.continueWithAd();
+  hud.setContinueAvailable(!resumed && !game.continueUsedThisRun);
 });
 
 function loop() {

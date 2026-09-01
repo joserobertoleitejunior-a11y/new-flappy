@@ -10,6 +10,7 @@ export class HUD {
     this.elGameOverScore = document.getElementById("gameover-score");
     this.elGameOverBest = document.getElementById("gameover-best");
     this.elMuteButton = document.getElementById("btn-mute");
+    this.elContinueButton = document.getElementById("btn-continue");
 
     this.screens = {
       [GAME_STATE.MENU]: document.getElementById("screen-menu"),
@@ -45,5 +46,9 @@ export class HUD {
       "aria-label",
       muted ? "Ativar música e efeitos" : "Silenciar música e efeitos",
     );
+  }
+
+  setContinueAvailable(available) {
+    this.elContinueButton.classList.toggle("hidden", !available);
   }
 }

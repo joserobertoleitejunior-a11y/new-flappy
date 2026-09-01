@@ -45,3 +45,16 @@ export function getMuted() {
 export function setMuted(muted) {
   safeSet(STORAGE_KEYS.MUTED, muted ? "1" : "0");
 }
+
+export function getGameOverCount() {
+  const raw = safeGet(STORAGE_KEYS.GAMEOVER_COUNT);
+  const parsed = Number.parseInt(raw ?? "0", 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+/** Incrementa e persiste o contador total de game overs. Retorna o novo total. */
+export function incrementGameOverCount() {
+  const next = getGameOverCount() + 1;
+  safeSet(STORAGE_KEYS.GAMEOVER_COUNT, String(next));
+  return next;
+}

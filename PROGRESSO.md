@@ -12,7 +12,7 @@
 | 2 | Obstáculos + colisão + game over | ✅ Concluída |
 | 3 | Placar e recorde (localStorage) | ✅ Concluída |
 | 4 | Loop de música/som | ✅ Concluída |
-| 5 | Estrutura AdMob (interstitial + rewarded) | ⏳ Pendente |
+| 5 | Estrutura AdMob (interstitial + rewarded) | ✅ Concluída |
 | 6 | Loja de skins | ⏳ Pendente |
 | 7 | Ajustes finais de performance | ⏳ Pendente |
 
@@ -209,10 +209,62 @@
 - `STORAGE_KEYS.GAMEOVER_COUNT` ainda não é lido/escrito — entra na fase 5
   (contagem de game overs pro intersticial).
 
+---
+
+## Fase 5 — Estrutura AdMob (interstitial + rewarded) ✅
+
+**O que foi feito:**
+- `src/ads/AdManager.js`: camada de anúncios pronta pra José plugar o AdMob
+  real depois, sem nenhuma chave no código-fonte (padrões §4) — IDs vêm de
+  `VITE_ADMOB_APP_ID` / `VITE_ADMOB_INTERSTITIAL_UNIT_ID` /
+  `VITE_ADMOB_REWARDED_UNIT_ID` (ver `.env.example`, novo no repo). Sem
+  essas variáveis e sem o app empacotado com Capacitor (que ainda não
+  aconteceu), roda em **modo simulado**: overlay full-screen que sempre
+  "recompensa", com os dois pontos de integração nativa marcados
+  `TODO(Capacitor/AdMob real)`.
+- Intersticial a cada 3 game overs (spec §5), contando de forma persistente
+  (`STORAGE_KEYS.GAMEOVER_COUNT` → `getGameOverCount`/`incrementGameOverCount`
+  novas em `Storage.js`) — disparado ao sair da tela de game over
+  (`start()`/`returnToMenu()`), não no instante da morte.
+- Anúncio recompensado "continuar de onde morreu": botão
+  "Continuar (anúncio)" na tela de game over (antes escondido, sem lógica)
+  agora funciona de verdade — 1x por partida (`continueUsedThisRun`), com
+  1,5s de invulnerabilidade temporária ao retomar pra não colidir de novo
+  instantaneamente com o obstáculo que matou o pássaro.
+- 3 novos testes unitários (`src/ads/AdManager.test.js` — cadência do
+  intersticial) + 2 em `Storage.test.js` (contador de game overs) — suíte
+  agora com 14 casos, todos verdes.
+- Testado manualmente em navegador headless: overlay simulado aparece nos
+  dois fluxos, recorde de continuar funciona (estado volta pra "jogando"),
+  botão de continuar não reaparece numa segunda morte da mesma partida,
+  intersticial dispara exatamente no 3º/6º/9º... game over e não antes.
+- Lint, testes unitários e build de produção validados.
+
+**Decisões tomadas sozinho** (detalhes em `docs/decisoes.md`, ADR 013):
+- AdManager detecta em runtime se está num app Capacitor nativo com AdMob
+  configurado; caso contrário usa o modo simulado — permite testar o fluxo
+  completo hoje, sem bloquear as fases seguintes esperando conta/SDK real.
+- Intersticial dispara na transição de saída da tela de game over (não na
+  morte em si), evitando empilhar dois overlays ao mesmo tempo.
+
+**O que falta / pendente:**
+- **José**: criar/configurar a conta AdMob real e preencher `.env` (a partir
+  de `.env.example`) com os IDs de app/unidade quando for empacotar com
+  Capacitor — os dois `TODO(Capacitor/AdMob real)` em `AdManager.js` são os
+  únicos pontos que precisam de código novo nessa hora.
+- Empacotamento com Capacitor em si (Android/iOS) não faz parte do roadmap
+  desta sessão — segue como próximo passo natural depois da fase 7.
+- Sem loja funcional ainda (fase 6).
+
 **Como rodar localmente:**
 ```bash
 npm install
 npm run dev      # http://localhost:5173
 npm run build    # gera dist/
 npm run lint
+npm test         # Vitest
 ```
+
+Opcional: copie `.env.example` pra `.env` e preencha os `VITE_ADMOB_*` com
+os IDs reais da conta AdMob quando existirem — sem isso, os anúncios rodam
+em modo simulado (ver fase 5).

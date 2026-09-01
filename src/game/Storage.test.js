@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { getBestScore, getMuted, saveScoreIfBest, setMuted } from "./Storage.js";
+import {
+  getBestScore,
+  getGameOverCount,
+  getMuted,
+  incrementGameOverCount,
+  saveScoreIfBest,
+  setMuted,
+} from "./Storage.js";
 import { STORAGE_KEYS } from "./constants.js";
 
 function createMemoryStorage() {
@@ -75,5 +82,18 @@ describe("getMuted / setMuted", () => {
     expect(getMuted()).toBe(true);
     setMuted(false);
     expect(getMuted()).toBe(false);
+  });
+});
+
+describe("getGameOverCount / incrementGameOverCount", () => {
+  it("começa em 0", () => {
+    expect(getGameOverCount()).toBe(0);
+  });
+
+  it("incrementa e persiste a cada chamada", () => {
+    expect(incrementGameOverCount()).toBe(1);
+    expect(incrementGameOverCount()).toBe(2);
+    expect(incrementGameOverCount()).toBe(3);
+    expect(getGameOverCount()).toBe(3);
   });
 });

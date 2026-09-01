@@ -1,15 +1,19 @@
 import * as THREE from "three";
+import { AdManager } from "../ads/AdManager.js";
 import { AudioManager } from "./AudioManager.js";
 import { Bird } from "./Bird.js";
 import { CameraRig } from "./CameraRig.js";
 import { InputController } from "./InputController.js";
 import { Obstacles } from "./Obstacles.js";
+import { incrementGameOverCount } from "./Storage.js";
 import { World } from "./World.js";
 import { BIRD, GAME_STATE, WORLD } from "./constants.js";
 
+const CONTINUE_INVULNERABILITY_SECONDS = 1.5;
+
 // Orquestra estado do jogo (menu/jogando/game over), física do pássaro,
-// obstáculos/colisão, câmera e som. Ads entram na fase seguinte sem
-// precisar reescrever esta base.
+// obstáculos/colisão, câmera, som e anúncios. Loja de skins entra na fase
+// seguinte sem precisar reescrever esta base.
 export class GameManager {
   /**
    * @param {HTMLCanvasElement} canvas
@@ -36,6 +40,7 @@ export class GameManager {
 
     this.cameraRig = new CameraRig(window.innerWidth / window.innerHeight);
     this.audio = new AudioManager();
+    this.ads = new AdManager();
 
     this.input = new InputController(canvas, () => this._handleFlap());
 
@@ -45,6 +50,9 @@ export class GameManager {
 
     this._distanceTraveled = 0;
     this.score = 0;
+    this._lastGameOverCount = 0;
+    this._invulnerableSeconds = 0;
+    this.continueUsedThisRun = false;
   }
 
   _handleFlap() {
@@ -54,23 +62,46 @@ export class GameManager {
     this.audio.playFlap();
   }
 
-  start() {
+  async start() {
+    await this._maybeShowInterstitial();
     this.audio.unlock();
     this.bird.reset();
     this.obstacles.reset();
     this._distanceTraveled = 0;
     this.score = 0;
+    this._invulnerableSeconds = 0;
+    this.continueUsedThisRun = false;
     this.callbacks.onScoreChange?.(this.score);
     this._setState(GAME_STATE.PLAYING);
   }
 
-  returnToMenu() {
+  async returnToMenu() {
+    await this._maybeShowInterstitial();
     this.bird.reset();
     this._setState(GAME_STATE.MENU);
   }
 
   openShop() {
     this._setState(GAME_STATE.SHOP);
+  }
+
+  /**
+   * Continua a partida atual depois de um anúncio recompensado (spec §5) —
+   * só disponível uma vez por partida. Retorna se conseguiu continuar.
+   * @returns {Promise<boolean>}
+   */
+  async continueWithAd() {
+    if (this.continueUsedThisRun || this.state !== GAME_STATE.GAME_OVER) return false;
+    this.continueUsedThisRun = true;
+
+    const rewarded = await this.ads.showRewarded();
+    if (!rewarded) return false;
+
+    this.bird.velocityY = 0;
+    this.bird.mesh.position.y = 0.5;
+    this._invulnerableSeconds = CONTINUE_INVULNERABILITY_SECONDS;
+    this._setState(GAME_STATE.PLAYING);
+    return true;
   }
 
   _setState(state) {
@@ -80,8 +111,16 @@ export class GameManager {
 
   _gameOver() {
     this.audio.playCollision();
+    this._lastGameOverCount = incrementGameOverCount();
     this._setState(GAME_STATE.GAME_OVER);
     this.callbacks.onGameOver?.(this.score);
+  }
+
+  async _maybeShowInterstitial() {
+    if (this.state !== GAME_STATE.GAME_OVER) return;
+    if (this.ads.shouldShowInterstitial(this._lastGameOverCount)) {
+      await this.ads.showInterstitial();
+    }
   }
 
   _difficultyT() {
@@ -124,7 +163,11 @@ export class GameManager {
         this.callbacks.onScoreChange?.(this.score);
       });
 
-      if (this._checkCollisions()) this._gameOver();
+      if (this._invulnerableSeconds > 0) {
+        this._invulnerableSeconds = Math.max(0, this._invulnerableSeconds - dt);
+      } else if (this._checkCollisions()) {
+        this._gameOver();
+      }
     }
 
     this.cameraRig.follow(this.bird.position, dt);

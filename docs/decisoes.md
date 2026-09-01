@@ -204,3 +204,43 @@ no DOM (as telas) desenham por cima do HUD, mesmo o HUD continuando visível
 **Decisão**: `#hud { z-index: 10; }` — o HUD (placar, recorde, botão de
 mudo) sempre fica acessível por cima de qualquer tela, igual à maioria dos
 jogos mobile onde o controle de som é global.
+
+---
+
+## ADR 013 — AdManager em modo simulado até José configurar o AdMob de verdade
+
+**Contexto**: fase 5 pede estrutura pronta pra AdMob (intersticial +
+recompensado), "sem chave real ainda, deixe pronto pra eu plugar depois".
+AdMob nativo de verdade só funciona dentro de um app empacotado com
+Capacitor (`@capacitor-community/admob`) — o empacotamento em si é uma
+etapa fora do roadmap desta sessão (spec §10 originalmente previa isso como
+um passo 7 separado, "Empacotar com Capacitor e publicar", que não faz
+parte da lista de 7 fases pedida aqui).
+
+**Decisão**: `src/ads/AdManager.js` detecta em runtime se está rodando
+dentro de um app nativo Capacitor com o plugin AdMob presente
+(`Capacitor.isNativePlatform() && Capacitor.Plugins.AdMob`) **e** se as
+variáveis `VITE_ADMOB_APP_ID` / `VITE_ADMOB_INTERSTITIAL_UNIT_ID` /
+`VITE_ADMOB_REWARDED_UNIT_ID` estão configuradas (nunca hardcoded — padrões
+§4). Se as duas condições não forem verdade (o caso hoje, sempre — web/PWA
+sem Capacitor), cai num modo simulado: um overlay full-screen por ~1,4s
+(intersticial) ou ~2s (recompensado) que sempre "recompensa" o jogador,
+permitindo testar o fluxo completo (cadência do intersticial, botão
+continuar) sem depender de conta/SDK real. Os dois pontos de integração
+nativa reais ficam marcados com `TODO(Capacitor/AdMob real)` no código,
+prontos pra José substituir quando empacotar o app.
+
+**Regras de negócio implementadas** (spec §5):
+- Intersticial a cada 3 game overs (`INTERSTITIAL_EVERY_N_GAMEOVERS`),
+  contando de forma persistente (`STORAGE_KEYS.GAMEOVER_COUNT`,
+  sobrevive a fechar o navegador) — disparado na transição de saída da
+  tela de game over (`start()`/`returnToMenu()`), não no momento da morte,
+  pra não empilhar dois overlays (game over + anúncio) ao mesmo tempo.
+- Recompensado "continuar de onde morreu": 1x por partida
+  (`continueUsedThisRun`, resetado em `start()`), com 1,5s de invulnerabilidade
+  temporária ao retomar (`_invulnerableSeconds`) pra não colidir de novo
+  instantaneamente com o obstáculo que acabou de matar o pássaro.
+
+**Alternativas descartadas**: bloquear a fase inteira até ter uma conta
+AdMob real — contraria a instrução explícita de deixar pronto pra plugar
+depois e travaria as fases seguintes (6 e 7) sem necessidade.
