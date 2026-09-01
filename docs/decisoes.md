@@ -273,3 +273,57 @@ acontece de verdade.
 "de graça" clicando no preço) — enganoso, o botão pareceria fazer uma
 cobrança real; ligar um provedor de pagamento de verdade agora — decisão
 de negócio (custo, taxa, provedor) que não é minha pra tomar sozinho.
+
+---
+
+## ADR 015 — Checklist de performance da fase 7: o que foi medido e o que ficou pendente
+
+**Contexto**: spec §9.1 pede instancing, object pooling, orçamento de
+polígonos, textura comprimida/limitada e meta de 60fps "testado em
+aparelho real, não só emulador/desktop". Este ambiente de execução não tem
+acesso a um celular físico — só navegador headless (Chromium com
+rasterizador por software, `swiftshader`, sem GPU real).
+
+**O que foi verificado e corrigido nesta fase** (números reais, medidos via
+`renderer.info` e contagem de triângulos em `dist/` — build de produção):
+- **Orçamento de polígonos**: pássaro = 116 triângulos (orçamento: 5000);
+  cada pilar de obstáculo = 12 triângulos (orçamento: 2000); árvore Kenney
+  = 230 triângulos. Todos bem abaixo do limite.
+- **Draw calls**: só 4 por frame (chão, obstáculos via `InstancedMesh`,
+  árvores via `InstancedMesh`, pássaro) — 14.110 triângulos no total da
+  cena inteira, uma carga trivial pra qualquer GPU mobile da última década.
+- **Texturas**: zero texturas em uso (todo material é cor sólida
+  `flatShading`) — o item "comprimir/limitar a 512×512" do checklist não
+  se aplica hoje; documentado aqui pra não parecer esquecido.
+- **Alocação por frame** (achado nesta fase, corrigido): `Obstacles.update`
+  fazia `Math.min(...items.map(...))` e `items.indexOf(item)` — alocava um
+  array novo e fazia busca O(n) a cada um dos 60 frames/seg, mesmo sem
+  nenhum obstáculo reciclando. Trocado por laço indexado sem alocação.
+  `GameManager.update` criava uma closure nova a cada frame pro callback
+  de pontuação — trocado por método vinculado uma única vez
+  (`this._onObstaclePassed`, ligado no construtor). Memória JS heap
+  medida estável (~5,6–6,6MB) ao longo de 8s de jogo contínuo com reinício
+  automático — sem tendência de crescimento, sem vazamento aparente.
+- **Bundle**: `three.js` separado num chunk próprio (`manualChunks`) — o
+  código do jogo em si fica em ~30KB, e o chunk do three (~485KB) só é
+  rebaixado de novo pelo navegador quando a própria lib mudar, não a cada
+  deploy do jogo.
+- **Lazy loading**: árvores carregam depois do primeiro frame (assíncrono,
+  não bloqueia), áudio só inicializa num gesto real do usuário — ambos já
+  garantidos desde as fases 1 e 4.
+
+**O que NÃO foi possível verificar aqui** (pendente, ação do José):
+- **FPS em celular real de entrada** — o item mais explícito do checklist
+  ("testar em aparelho real, não só emulador/desktop") não tem como ser
+  cumprido neste ambiente. Rodei em Chromium headless com rasterizador por
+  software (`swiftshader`, sem aceleração de GPU de verdade) só como sanity
+  check: ~30fps estáveis, sem degradação ao longo do tempo — mas esse
+  número reflete o gargalo do software rendering, não representa hardware
+  real. Dada a carga baixíssima da cena (4 draw calls, 14k triângulos),
+  60fps em GPU real de celular de entrada é o resultado esperado, mas
+  **isso precisa ser confirmado por José em um aparelho físico** antes de
+  considerar o checklist 100% fechado.
+
+**Alternativas descartadas**: fingir um número de FPS "de aparelho real" —
+inventaria um dado que não foi medido; melhor documentar exatamente o que
+foi e não foi verificado.

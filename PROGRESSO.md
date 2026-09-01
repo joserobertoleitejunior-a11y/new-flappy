@@ -14,7 +14,7 @@
 | 4 | Loop de música/som | ✅ Concluída |
 | 5 | Estrutura AdMob (interstitial + rewarded) | ✅ Concluída |
 | 6 | Loja de skins | ✅ Concluída |
-| 7 | Ajustes finais de performance | ⏳ Pendente |
+| 7 | Ajustes finais de performance | ✅ Concluída (com 1 item pendente do José — ver abaixo) |
 
 ---
 
@@ -297,6 +297,68 @@
 - Skins são só cor sólida por enquanto — trocar por modelos/texturas
   diferentes por skin é uma evolução futura, fora do pedido desta fase
   ("mesmo que só com um item").
+
+---
+
+## Fase 7 — Ajustes finais de performance ✅ (com pendência do José)
+
+Checklist da spec §9.1, item por item — números reais medidos no build de
+produção (`npm run build` + `renderer.info`):
+
+- ✅ **Orçamento de polígonos**: pássaro = 116 tris (limite 5000); pilar de
+  obstáculo = 12 tris (limite 2000); árvore Kenney = 230 tris. Todos bem
+  abaixo do limite.
+- ✅ **Instancing**: obstáculos e árvores já usavam `InstancedMesh` desde as
+  fases 1/2 — confirmado, nenhum `Mesh` avulso por elemento repetido.
+- ✅ **Object pooling**: obstáculos reciclados (nunca criados/destruídos) —
+  confirmado desde a fase 2.
+- ✅ **Texturas comprimidas/512×512**: não se aplica — o jogo não usa
+  nenhuma textura (só cor sólida `flatShading`), então não há nada pra
+  comprimir. Documentado pra não parecer esquecido (ADR 015).
+- ✅ **Draw calls**: só 4 por frame no total da cena (chão, obstáculos,
+  árvores, pássaro) — 14.110 triângulos na cena inteira.
+- ✅ **Lazy loading**: árvores carregam depois do primeiro frame, áudio só
+  inicializa num gesto do usuário — já garantido desde as fases 1 e 4.
+- ✅ **Alocação por frame** (achado e corrigido nesta fase, não estava no
+  checklist original mas é a mesma categoria de problema): `Obstacles.js`
+  alocava um array novo a cada frame (`Math.min(...map(...))`) e fazia
+  busca O(n) (`indexOf`) mesmo sem nada reciclando; `GameManager.js`
+  recriava uma closure a cada frame pro callback de pontuação. Os dois
+  foram trocados por laços/métodos sem alocação. Heap JS medido estável
+  (~5,6–6,6MB) ao longo de 8s de jogo contínuo — sem tendência de
+  crescimento.
+- ✅ **Bundle**: `three.js` separado num chunk próprio — código do jogo em
+  si fica em ~30KB, cacheável independente da lib.
+- ⚠️ **Meta de 60fps em celular real de entrada — PENDENTE, precisa do
+  José**: este ambiente não tem acesso a um aparelho físico, só Chromium
+  headless com rasterizador por software (sem GPU real), que mediu ~30fps
+  estáveis — número que reflete o gargalo do software rendering, não
+  representa hardware de verdade. Dada a carga baixíssima da cena (4 draw
+  calls, ~14k triângulos), 60fps num celular real de entrada é o resultado
+  esperado, mas **isso só pode ser confirmado testando em um aparelho
+  físico**. Ver ADR 015 pra detalhes completos do que foi e não foi
+  medido.
+
+**Decisões tomadas sozinho** (ADR 015): documentei explicitamente o que dá
+pra verificar num ambiente sem GPU/celular real e o que fica como pendência
+sua — preferi ser honesto sobre a lacuna a inventar um número de FPS "de
+aparelho real" que não foi medido de verdade.
+
+**O que falta / pendente (resumo geral do projeto, todas as 7 fases):**
+- **José, ação necessária**: testar o jogo num celular de entrada real e
+  confirmar 60fps (único item do checklist de performance não verificável
+  aqui).
+- **José, decisão de negócio**: conta AdMob real (fase 5, `.env` a partir
+  de `.env.example`) e provedor de pagamento pra loja de skins (fase 6).
+- Empacotamento com Capacitor (Android/iOS) e publicação nas lojas — não
+  fazia parte do roadmap desta sessão, é o próximo passo natural depois
+  daqui (spec §10 original).
+- Sem testes E2E com Playwright como suíte formal do projeto ainda — as
+  fases 1–7 foram validadas manualmente com scripts Playwright descartáveis
+  a cada fase (não commitados); formalizar isso como `npm run test:e2e` é
+  uma boa próxima tarefa se o projeto continuar.
+- Sentry (observabilidade, padrões §3.1) ainda não plugado — nenhum erro em
+  produção é capturado automaticamente hoje.
 
 **Como rodar localmente:**
 ```bash

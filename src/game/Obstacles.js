@@ -84,10 +84,19 @@ export class Obstacles {
       OBSTACLES.MIN_SPAWN_INTERVAL,
       difficultyT,
     );
-    let frontmostZ = Math.min(...this.items.map((item) => item.z));
-    let changed = false;
 
-    for (const item of this.items) {
+    // Loop indexado sem alocação (nada de spread/map/indexOf por frame) —
+    // roda 60x/seg, então qualquer lixo de heap aqui vira pressão de GC
+    // desnecessária (spec §9.1: object pooling é sobre nunca alocar no loop).
+    let frontmostZ = this.items[0].z;
+    for (let i = 1; i < this.items.length; i += 1) {
+      if (this.items[i].z < frontmostZ) frontmostZ = this.items[i].z;
+    }
+
+    let changed = false;
+    for (let i = 0; i < this.items.length; i += 1) {
+      const item = this.items[i];
+
       if (!item.scored && birdZ < item.z) {
         item.scored = true;
         onScore?.();
@@ -97,7 +106,7 @@ export class Obstacles {
         item.z = frontmostZ - spacing;
         frontmostZ = item.z;
         this._randomizeGap(item, difficultyT);
-        this._writeInstance(this.items.indexOf(item), item);
+        this._writeInstance(i, item);
         changed = true;
       }
     }

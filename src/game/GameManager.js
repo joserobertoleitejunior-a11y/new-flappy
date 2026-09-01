@@ -43,6 +43,9 @@ export class GameManager {
     this.ads = new AdManager();
 
     this.input = new InputController(canvas, () => this._handleFlap());
+    // Vinculado uma única vez — evita alocar uma closure nova a cada frame
+    // dentro de update() (spec §9.1: sem alocação no laço principal).
+    this._onObstaclePassed = this._onObstaclePassed.bind(this);
 
     this._resize = this._resize.bind(this);
     window.addEventListener("resize", this._resize);
@@ -135,6 +138,12 @@ export class GameManager {
     );
   }
 
+  _onObstaclePassed() {
+    this.score += 1;
+    this.audio.playPoint();
+    this.callbacks.onScoreChange?.(this.score);
+  }
+
   _checkCollisions() {
     const hitGround = this.bird.position.y - BIRD.RADIUS <= WORLD.GROUND_Y;
     const hitObstacle = this.obstacles.checkCollision(this.bird.position, BIRD.RADIUS);
@@ -157,11 +166,7 @@ export class GameManager {
       this.bird.mesh.position.z -= speed * dt;
       this._distanceTraveled += speed * dt;
 
-      this.obstacles.update(this.bird.position.z, this._difficultyT(), () => {
-        this.score += 1;
-        this.audio.playPoint();
-        this.callbacks.onScoreChange?.(this.score);
-      });
+      this.obstacles.update(this.bird.position.z, this._difficultyT(), this._onObstaclePassed);
 
       if (this._invulnerableSeconds > 0) {
         this._invulnerableSeconds = Math.max(0, this._invulnerableSeconds - dt);
