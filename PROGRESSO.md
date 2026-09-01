@@ -15,6 +15,7 @@
 | 5 | Estrutura AdMob (interstitial + rewarded) | ✅ Concluída |
 | 6 | Loja de skins | ✅ Concluída |
 | 7 | Ajustes finais de performance | ✅ Concluída (com 1 item pendente do José — ver abaixo) |
+| 8 | Controle por câmera + mergulho (drone: boca sobe, sobrancelha mergulha) | ✅ Concluída (fora do roadmap original, a pedido do José) |
 
 ---
 
@@ -372,3 +373,127 @@ npm test         # Vitest
 Opcional: copie `.env.example` pra `.env` e preencha os `VITE_ADMOB_*` com
 os IDs reais da conta AdMob quando existirem — sem isso, os anúncios rodam
 em modo simulado (ver fase 5).
+
+---
+
+## Fase 8 — Controle por câmera + mergulho (drone) ✅
+
+> Fora do roadmap original da spec (§8) — adicionada a pedido do José
+> durante a sessão. Sobre textura: também perguntado nessa conversa —
+> resposta ficou registrada aqui e no chat, não é código (ver "Sobre
+> texturas" no fim desta seção).
+
+**O que foi feito:**
+- `src/game/CameraInput.js`: usa `@mediapipe/tasks-vision`
+  (`FaceLandmarker` com blendshapes) pra detectar **dois gestos
+  independentes**: boca aberta (`jawOpen`) dispara `GameManager.flap()`
+  (sobe), sobrancelha levantada (`browInnerUp`/`browOuterUp*`) dispara
+  `GameManager.dive()` (mergulha) — o mesmo controle "tipo drone" descrito
+  abaixo, só que pela câmera. Detecção limitada a ~8x/seg (não a cada
+  frame) e pausada quando a aba fica em background — protege o orçamento
+  de performance fechado na fase 7. Delegate `GPU` com fallback pra `CPU`.
+- **Sempre opcional, nunca substitui o toque** (decisão do José, ver ADR
+  016): botão dedicado no menu ("🎥 Controle por câmera (experimental)"),
+  com preview de vídeo espelhado e mensagens claras de status/erro. Toque
+  continua sendo o controle padrão e funciona igual com ou sem câmera.
+- **Import dinâmico**: `CameraInput.js` (que carrega o MediaPipe, ~145KB)
+  só entra no bundle quando o jogador clica no botão — achado durante esta
+  fase: a primeira versão importava estático e inflava o bundle principal
+  de ~30KB pra ~177KB pra todo mundo, mesmo quem nunca usa a feature.
+  Corrigido antes de qualquer commit (ver ADR 016).
+- WASM do MediaPipe e o modelo de landmarks faciais carregam de CDN
+  externo (`jsdelivr.net`/`storage.googleapis.com`) só quando a câmera é
+  ativada — nada disso entra no `dist/` do projeto.
+- Testado em Chromium headless com câmera falsa (permissão, vídeo,
+  import dinâmico, chamada da API MediaPipe — tudo confirmado
+  funcionando). **Não deu pra testar o download do WASM/modelo até o fim
+  neste sandbox** — o proxy de rede daqui bloqueia `jsdelivr.net` por
+  política própria do ambiente de desenvolvimento (não é um bug do código,
+  nem afeta o navegador real de um jogador). O caminho de erro foi
+  validado de propósito: sem o WASM, o jogo cai no aviso "não foi possível
+  ligar a câmera, toque continua funcionando" sem quebrar nada.
+- Lint, testes unitários (sem regressão — os 20 testes existentes
+  continuam verdes) e build de produção validados. Regressão manual do
+  jogo inteiro (jogar, morrer, menu, loja) confirmada sem quebra.
+
+**Decisões tomadas sozinho** (ADR 016): biblioteca (MediaPipe Tasks
+Vision, oficial do Google), throttling da detecção, fallback GPU→CPU, sem
+persistir a preferência de câmera entre sessões (evita permission prompt
+surpresa a cada load), CDN externo em vez de auto-hospedar o WASM
+(~12-34MB) no deploy do projeto.
+
+**O que falta / pendente:**
+- **José, ação necessária**: testar o controle por câmera de verdade num
+  navegador com internet normal (fora deste sandbox) — é o único trecho
+  que não pôde ser validado ponta a ponta aqui.
+- Sem calibração de sensibilidade ajustável pelo jogador (limiar fixo em
+  código) — se o gesto disparar cedo/tarde demais na prática, é um ajuste
+  rápido em `GESTURE_ON_THRESHOLD`/`GESTURE_OFF_THRESHOLD`.
+- Sem indicador visual de "gesto detectado" em tempo real (só o preview de
+  vídeo) — poderia ajudar o jogador a calibrar o próprio gesto, mas não
+  foi pedido; fica como ideia pra próxima iteração se o José achar necessário.
+
+---
+
+### Mergulho ("dive") — controle tipo drone, boca sobe / sobrancelha mergulha
+
+> Pedido do José durante a sessão: "movimentos de voo bem avançados, como
+> um drone... boca, sobrancelha, algum movimento de descer com tudo
+> fechando as asas". Ver ADR 017 pra detalhes completos.
+
+**O que foi feito:**
+- `Bird.dive()`: impulso forte pra baixo (`DIVE_IMPULSE = -15`) e, por
+  0,6s, um teto de velocidade de queda mais rápido que o normal
+  (`DIVE_MAX_FALL_SPEED = -28` contra `-18` da queda livre comum) — um
+  mergulho de verdade, não só "parar de bater asas".
+- Pose visual "asas fechadas": sem criar sub-meshes articulados (custaria
+  draw calls extras, contrariando a fase 7), o pássaro inteiro encolhe no
+  eixo X (`scale.x → 0.55`) e inclina o bico pra baixo — tudo com
+  transição suave (lerp), sem trocar de pose de repente. Zero triângulo
+  ou draw call a mais.
+- `flap()` e `dive()` se cancelam mutuamente — o jogador sempre consegue
+  "puxar pra cima" no meio de um mergulho, e vice-versa.
+- **Nos três controles, não só na câmera** (acessibilidade não é exceção):
+  toque = arrastar pra baixo depois de tocar (o toque já bate asa; se
+  arrastar mais de 40px pra baixo na mesma tocada, mergulha também);
+  teclado = seta-baixo/S; câmera = sobrancelha levantada.
+- Texto do menu atualizado: "Toque na tela pra bater as asas. Arraste pra
+  baixo pra mergulhar e desviar dos obstáculos."
+- Som novo (`AudioManager.playDive()`) — um whoosh descendente, diferente
+  do som de colisão.
+- **Achado corrigido**: `continueWithAd()` (fase 5) reposicionava o
+  pássaro manualmente sem limpar o estado de mergulho — se o jogador
+  morresse mergulhando e continuasse com anúncio, a pose ficaria "grudada".
+  Corrigido com `Bird.resetPose(y)`, um método dedicado que limpa
+  velocidade/pose/mergulho mantendo X/Z.
+- Testado em Chromium headless: física do impulso e do boost de queda
+  temporário, blend visual (valores intermediários reais confirmados
+  durante o mergulho e de volta a ~1 depois), cancelamento mútuo
+  flap↔dive, e os três caminhos de entrada (swipe no toque, seta-baixo,
+  encadeamento correto do gesto de sobrancelha) — todos funcionando. Sem
+  regressão nos 20 testes unitários.
+
+**Decisões tomadas sozinho** (ADR 017): mapeamento boca=sobe/sobrancelha=desce
+(dá dois comandos direcionais, não só "cima ou nada" — é o que faz sentido
+como "controle de drone"); pose via transformação do mesh inteiro em vez
+de sub-meshes articulados (mantém 1 draw call); mergulho disponível nos
+três controles, não só na câmera.
+
+**O que falta / pendente:**
+- Balanceamento não testado com jogadores de verdade — `DIVE_IMPULSE`
+  (-15) e `DIVE_MAX_FALL_SPEED` (-28) são valores de primeira tentativa.
+  Mergulhar perto do chão é bem arriscado por design (fica fácil bater),
+  igual um mergulho de verdade — se José achar punitivo demais em teste
+  real, é ajuste rápido nessas duas constantes em `constants.js`.
+- Sem hitbox reduzida durante o mergulho (ideia descartada por enquanto,
+  ver ADR 017 — não foi pedida, adicionaria mais uma variável de
+  balanceamento).
+
+**Sobre texturas (pergunta do José, sem código associado ainda):**
+Confirmado nesta sessão: os assets Kenney no repositório não têm nenhuma
+textura de verdade (só cor sólida via `Kd` nos `.mtl`, sem `map_Kd`) — é
+por isso que todo o visual do jogo é flat-shading hoje. Pra adicionar
+textura de verdade falta um arquivo de imagem de origem (pack completo da
+Kenney com `Colormap.png`, textura própria, ou eu gerar algo procedural).
+Sem esse arquivo, não tem o que implementar ainda — decisão/asset
+pendente do José.

@@ -19,6 +19,16 @@ export const BIRD = {
   RADIUS: 0.35, // raio de colisão (esfera simplificada)
   LATERAL_LIMIT: 3.2, // limite lateral pra manobra manual (fase futura)
   MAX_TRIANGLES: 5000, // orçamento de polígonos (spec 9.1)
+
+  // Mergulho ("dive"): gesto extra (sobrancelha na câmera, arrastar pra
+  // baixo no toque, seta-baixo/S no teclado) — pássaro fecha as asas e
+  // cai bem mais rápido que a queda normal, por um tempo curto.
+  DIVE_IMPULSE: -15, // unidades/seg — impulso instantâneo pra baixo ao mergulhar
+  DIVE_MAX_FALL_SPEED: -28, // queda livre normal (-18) fica bem mais lenta que isso
+  DIVE_DURATION: 0.6, // segundos de física "turbinada" após o gesto
+  DIVE_PITCH: -0.95, // inclinação visual (bico pra baixo), radianos
+  DIVE_SCALE_X: 0.55, // "asas fechadas" — silhueta mais fina durante o mergulho
+  DIVE_SCALE_Y: 1.2, // levemente alongado, reforça a sensação de mergulho
 };
 
 export const OBSTACLES = {

@@ -50,6 +50,59 @@ document.getElementById("btn-continue").addEventListener("click", async () => {
   hud.setContinueAvailable(!resumed && !game.continueUsedThisRun);
 });
 
+// Controle alternativo por câmera (opt-in, nunca substitui o toque/teclado)
+// — abrir a boca bate as asas (sobe), levantar a sobrancelha mergulha
+// (fecha as asas, desce rápido). Import dinâmico: o wrapper JS do
+// MediaPipe (~140KB) só entra no bundle se o jogador realmente clicar
+// aqui — sem isso, ele iria pro chunk principal e pesaria no primeiro
+// load de todo mundo (spec §9.1: lazy loading vale pro código, não só
+// pra assets 3D/áudio).
+const btnCameraControl = document.getElementById("btn-camera-control");
+const cameraStatusEl = document.getElementById("camera-status");
+const cameraPreviewEl = document.getElementById("camera-preview");
+let cameraInput = null;
+
+function setCameraStatus(text, isError = false) {
+  cameraStatusEl.textContent = text;
+  cameraStatusEl.classList.toggle("hidden", !text);
+  cameraStatusEl.classList.toggle("camera-status-error", isError);
+}
+
+btnCameraControl.addEventListener("click", async () => {
+  if (cameraInput?.running) {
+    cameraInput.stop();
+    cameraPreviewEl.classList.add("hidden");
+    btnCameraControl.setAttribute("aria-pressed", "false");
+    setCameraStatus("");
+    return;
+  }
+
+  setCameraStatus("Carregando controle por câmera...");
+  if (!cameraInput) {
+    const { CameraInput } = await import("./game/CameraInput.js");
+    cameraInput = new CameraInput({
+      onFlap: () => game.flap(),
+      onDive: () => game.dive(),
+      videoElement: cameraPreviewEl,
+    });
+  }
+
+  setCameraStatus("Ligando câmera...");
+  const started = await cameraInput.start();
+  if (started) {
+    cameraPreviewEl.classList.remove("hidden");
+    btnCameraControl.setAttribute("aria-pressed", "true");
+    setCameraStatus(
+      "Câmera ativa — abra a boca pra bater asas, levante a sobrancelha pra mergulhar.",
+    );
+  } else {
+    setCameraStatus(
+      "Não foi possível ligar a câmera — o toque na tela continua funcionando.",
+      true,
+    );
+  }
+});
+
 function loop() {
   game.update();
   requestAnimationFrame(loop);

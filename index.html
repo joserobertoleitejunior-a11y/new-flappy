@@ -18,6 +18,14 @@
     <div id="app">
       <canvas id="game-canvas" aria-label="Área do jogo New Flappy 3D"></canvas>
 
+      <video
+        id="camera-preview"
+        class="camera-preview hidden"
+        playsinline
+        muted
+        aria-hidden="true"
+      ></video>
+
       <header id="hud" aria-live="polite">
         <span id="hud-score">0</span>
         <div class="hud-right">
@@ -28,9 +36,21 @@
 
       <section id="screen-menu" class="screen" role="region" aria-label="Menu inicial">
         <h1>New Flappy 3D</h1>
-        <p>Toque na tela para bater as asas e desviar dos obstáculos.</p>
+        <p>
+          Toque na tela pra bater as asas. Arraste pra baixo pra mergulhar e
+          desviar dos obstáculos.
+        </p>
         <button id="btn-play" type="button">Jogar</button>
         <button id="btn-shop" type="button">Loja de skins</button>
+        <button
+          id="btn-camera-control"
+          type="button"
+          class="secondary"
+          aria-pressed="false"
+        >
+          🎥 Controle por câmera (experimental)
+        </button>
+        <p id="camera-status" class="camera-status hidden" role="status"></p>
       </section>
 
       <section id="screen-gameover" class="screen hidden" role="region" aria-label="Fim de jogo">

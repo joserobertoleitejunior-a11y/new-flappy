@@ -327,3 +327,166 @@ rasterizador por software, `swiftshader`, sem GPU real).
 **Alternativas descartadas**: fingir um número de FPS "de aparelho real" —
 inventaria um dado que não foi medido; melhor documentar exatamente o que
 foi e não foi verificado.
+
+---
+
+## ADR 016 — Controle por câmera: rastreamento facial via MediaPipe, opt-in, nunca substitui o toque
+
+**Contexto**: pedido do José pra "jogabilidade via câmera" — depois de
+esclarecer com ele (câmera física do celular, não a câmera 3D do jogo),
+ficou definido: gesto = abrir a boca ou levantar a sobrancelha; opcional,
+o toque continua sendo o controle padrão.
+
+**Decisão — biblioteca**: `@mediapipe/tasks-vision` (`FaceLandmarker` com
+`outputFaceBlendshapes: true`) — é o pacote oficial do Google pra
+landmarks faciais no navegador via WASM, mantido ativamente, com delegate
+`GPU` e fallback automático pra `CPU` se o `GPU` falhar (celular
+fraco/navegador sem suporte). Uso as categorias de blendshape `jawOpen`
+(boca aberta) e `browInnerUp`/`browOuterUpLeft`/`browOuterUpRight`
+(sobrancelha levantada) — qualquer uma delas passando de um limiar
+(0.55, com histerese até 0.35 pra não disparar de novo enquanto o gesto
+continua) dispara um flap, pelo mesmo caminho (`GameManager.flap()`) que o
+toque já usa.
+
+**Decisão — performance**: a fase 7 acabou de fechar o checklist de 60fps;
+IA facial rodando toda hora seria um risco real de regressão. Mitigado
+com:
+- Detecção throttled a ~8x/seg (`DETECTION_INTERVAL_MS = 120`), não a cada
+  frame de render — gesto facial é lento, 60Hz de amostragem seria
+  desperdício de CPU sem ganho de responsividade.
+- Pausa automática quando a aba fica em background (`document.hidden`).
+- **100% opt-in e sob demanda**: nada relacionado a câmera é importado no
+  bundle principal — `CameraInput.js` (que importa o `@mediapipe/tasks-vision`,
+  ~145KB minificado) só é carregado via `import()` dinâmico dentro do
+  clique no botão "Controle por câmera". Achado durante esta fase: a
+  primeira versão importava estático no topo do `main.js` e isso sozinho
+  inflou o bundle principal de ~30KB pra ~177KB — contrariando o próprio
+  princípio de lazy loading que vínhamos seguindo desde a fase 1. Corrigido
+  antes de commitar (bundle principal voltou a ~33KB; o chunk de câmera só
+  baixa se o jogador realmente clicar).
+- O modelo (`face_landmarker.task`, alguns MB) e o runtime WASM
+  (`@mediapipe/tasks-vision`, ~12MB por variante SIMD/não-SIMD) vêm de CDN
+  externo (`storage.googleapis.com` e `cdn.jsdelivr.net`, respectivamente)
+  — carregados só quando a câmera é ativada, nunca embutidos no `dist/` do
+  projeto. Evita inflar o deploy em ~12-34MB pra uma feature que a maioria
+  dos jogadores nunca vai tocar.
+
+**Decisão — UX/acessibilidade**: botão dedicado no menu
+("🎥 Controle por câmera (experimental)"), com `aria-pressed` e texto de
+status (`role="status"`) reportando o que está acontecendo (carregando,
+ativo, ou erro — sempre deixando claro que o toque continua funcionando).
+Preview de vídeo pequeno (espelhado, canto da tela) some quando a câmera é
+desligada. Sem persistência da preferência entre sessões — evita reabrir a
+câmera sozinho a cada load (permission prompt surpresa é ruim de UX e
+levanta bandeira de privacidade); o jogador liga de novo se quiser.
+
+**Testado**: fluxo completo validado em Chromium headless com dispositivo
+de câmera falso (`--use-fake-device-for-media-stream` +
+`--use-fake-ui-for-media-stream`) — permissão concedida, vídeo anexado e
+tocando, import dinâmico do módulo funcionando, chamada correta da API do
+MediaPipe (confirmado contra o `.d.ts` do pacote). **Não foi possível
+testar o carregamento do WASM/modelo de ponta a ponta neste ambiente**: o
+proxy de rede deste sandbox bloqueia `cdn.jsdelivr.net` por política
+própria (confirmado via `net::ERR_TUNNEL_CONNECTION_FAILED`, não um erro
+de código) — isso não afeta o navegador real de um jogador, que não passa
+por esse proxy. O caminho de falha foi validado de propósito: com o WASM
+bloqueado, o código caiu certinho no fallback gracioso ("não foi possível
+ligar a câmera, toque continua funcionando"), que é o mesmo caminho que um
+celular sem suporte a WebAssembly/câmera passaria.
+
+**Pendente (José, ação necessária)**: testar o controle por câmera de
+verdade num navegador com internet normal (fora deste sandbox) — o código
+está pronto e o único ponto não verificável aqui foi justamente o download
+do WASM via CDN, que deve funcionar normalmente fora deste ambiente restrito.
+
+**Alternativas descartadas**:
+- Movimento genérico (diff de pixel entre frames) — mais leve, mas o José
+  pediu especificamente boca/sobrancelha, que precisa de landmarks reais.
+- Substituir o toque pela câmera — José escolheu explicitamente manter
+  como opção alternativa (menos risco, sempre tem um controle que
+  funciona mesmo sem câmera/permissão).
+- Hospedar o WASM (~12-34MB) dentro do próprio `dist/` do projeto em vez
+  de CDN — evitaria a dependência externa, mas infla o deploy pra uma
+  feature opt-in que a maioria não vai usar; jsDelivr é o CDN
+  oficialmente recomendado pelo MediaPipe e extremamente confiável em
+  produção real (o bloqueio visto aqui é específico deste sandbox de
+  desenvolvimento).
+
+---
+
+## ADR 017 — Mergulho ("dive"): boca sobe, sobrancelha mergulha, controle tipo drone
+
+**Contexto**: depois de implementar o gesto único (boca OU sobrancelha =
+flap), o José pediu algo mais avançado — "movimentos de voo bem
+avançados, como um drone", com boca e sobrancelha fazendo coisas
+diferentes, incluindo "descer com tudo fechando as asas".
+
+**Decisão — mapeamento de gestos**: em vez de um único gesto disparando a
+mesma ação, agora são dois gestos independentes com ações opostas —
+boca aberta (`jawOpen`) = flap (sobe), sobrancelha levantada
+(`browInnerUp`/`browOuterUp*`) = mergulho (desce rápido, fechando as
+asas). Isso dá ao jogador dois comandos direcionais (cima/baixo) em vez de
+só "cima ou nada", que é o que de fato lembra pilotar um drone — controle
+ativo nos dois eixos, não só reagir à gravidade.
+
+**Decisão — física do mergulho**: `Bird.dive()` aplica um impulso forte
+pra baixo (`DIVE_IMPULSE = -15`) e, por `DIVE_DURATION = 0.6s`, troca o
+teto de velocidade de queda de `-18` (normal) pra `-28`
+(`DIVE_MAX_FALL_SPEED`) — sem essa troca temporária, o clamp normal de
+velocidade anularia a sensação de "mergulho mais rápido que cair" já no
+frame seguinte. `flap()` cancela um mergulho em andamento e vice-versa —
+o jogador sempre pode "puxar pra cima" de um mergulho, dá mais controle
+e evita a sensação de estar preso numa animação.
+
+**Decisão — visual sem gastar draw call extra**: o pássaro é um único
+`Mesh`/`BufferGeometry` (1 draw call, spec §9.1) — animar as asas
+fechando "de verdade" exigiria separar em sub-meshes articulados, o que
+custaria mais draw calls e complexidade de rig. Em vez disso, a pose de
+mergulho é simulada só com transformações no mesh inteiro: `scale.x` encolhe
+(`DIVE_SCALE_X = 0.55` — silhueta mais fina, "lê" como asas fechadas no
+estilo low-poly do jogo) e `rotation.x` inclina o bico pra baixo
+(`DIVE_PITCH`), tudo com um blend suave (`_diveBlend`, lerp) pra entrar e
+sair da pose sem trocar de repente. Zero draw call adicional, zero
+triângulo a mais.
+
+**Decisão — três formas de disparar cada ação, sempre**: como o mergulho
+virou uma mecânica de verdade (não só um extra da câmera), ele passou a
+existir nos três controles, simetricamente:
+- Toque: arrastar pra baixo depois de tocar (`InputController` — o toque
+  já dispara o flap instantâneo, se o dedo arrastar mais de 40px pra
+  baixo na mesma tocada, dispara também o mergulho — os dois no mesmo
+  gesto, natural de fazer com uma mão só).
+- Teclado: seta-baixo/S (além de espaço/seta-cima pro flap, já existentes).
+- Câmera: sobrancelha (além da boca pro flap).
+
+Sem isso, o mergulho ficaria trancado atrás da câmera — a maioria dos
+jogadores (que não vai ligar a câmera) nunca acessaria a mecânica nova.
+Acessibilidade não é exceção (padrões §5).
+
+**Achado durante a implementação**: `continueWithAd()` (fase 5) reposicionava
+o pássaro manualmente (`bird.mesh.position.y = 0.5`) sem limpar o estado de
+mergulho — se o jogador morresse no meio de um mergulho e usasse o anúncio
+pra continuar, a pose de mergulho (asas fechadas, bico baixo) ficaria
+"grudada" mesmo depois de retomar. Corrigido com um método novo,
+`Bird.resetPose(y)`, que reseta velocidade/pose/escala mantendo X/Z —
+GameManager chama isso em vez de mexer direto nos campos do pássaro.
+
+**Testado**: física do mergulho (impulso, boost de queda temporário),
+blend visual (escala + inclinação, confirmado em valores intermediários
+reais durante o mergulho e de volta a ~1 depois), cancelamento mútuo
+flap↔dive, e os três caminhos de entrada (swipe no toque, seta-baixo no
+teclado, encadeamento correto do gesto de sobrancelha na câmera) — tudo
+validado em Chromium headless. Sem regressão nos 20 testes unitários
+existentes.
+
+**Alternativas descartadas**:
+- Sub-meshes articulados pra asas de verdade dobrarem — mais fiel
+  visualmente, mas custa draw calls extras e um rig de animação que o
+  estilo low-poly flat-shaded do jogo não pede.
+- Mergulho só na câmera (sem toque/teclado) — deixaria a mecânica nova
+  inacessível pra quem não usa câmera, contrariando acessibilidade.
+- Hitbox de colisão menor durante o mergulho ("esguio, passa mais fácil")
+  — ideia divertida, mas não foi pedida; mudar o hitbox junto com a
+  velocidade duplica as variáveis de balanceamento pra acertar de uma vez
+  só. Fica registrada aqui como ideia pra uma próxima iteração se o José
+  achar que o mergulho está difícil demais de usar perto do chão.

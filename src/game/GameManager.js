@@ -42,7 +42,10 @@ export class GameManager {
     this.audio = new AudioManager();
     this.ads = new AdManager();
 
-    this.input = new InputController(canvas, () => this._handleFlap());
+    this.input = new InputController(canvas, {
+      onFlap: () => this.flap(),
+      onDive: () => this.dive(),
+    });
     // Vinculado uma única vez — evita alocar uma closure nova a cada frame
     // dentro de update() (spec §9.1: sem alocação no laço principal).
     this._onObstaclePassed = this._onObstaclePassed.bind(this);
@@ -58,11 +61,21 @@ export class GameManager {
     this.continueUsedThisRun = false;
   }
 
-  _handleFlap() {
+  /** Bate as asas (sobe) — toque/clique/espaço, gesto de boca na câmera. */
+  flap() {
     this.audio.unlock();
     if (this.state !== GAME_STATE.PLAYING) return;
     this.bird.flap();
     this.audio.playFlap();
+  }
+
+  /** Mergulha (fecha as asas, desce rápido) — arrastar pra baixo/seta-baixo,
+   * gesto de sobrancelha na câmera. Mesmo caminho pros três controles. */
+  dive() {
+    this.audio.unlock();
+    if (this.state !== GAME_STATE.PLAYING) return;
+    this.bird.dive();
+    this.audio.playDive();
   }
 
   async start() {
@@ -100,8 +113,7 @@ export class GameManager {
     const rewarded = await this.ads.showRewarded();
     if (!rewarded) return false;
 
-    this.bird.velocityY = 0;
-    this.bird.mesh.position.y = 0.5;
+    this.bird.resetPose(0.5);
     this._invulnerableSeconds = CONTINUE_INVULNERABILITY_SECONDS;
     this._setState(GAME_STATE.PLAYING);
     return true;

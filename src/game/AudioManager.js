@@ -64,6 +64,10 @@ export class AudioManager {
     this._blip({ freqStart: 220, freqEnd: 60, duration: 0.28, type: "sawtooth", gain: 0.32 });
   }
 
+  playDive() {
+    this._blip({ freqStart: 500, freqEnd: 120, duration: 0.22, type: "sawtooth", gain: 0.26 });
+  }
+
   _blip({ freqStart, freqEnd, duration, type, gain }) {
     if (!this.context) return;
     const now = this.context.currentTime;

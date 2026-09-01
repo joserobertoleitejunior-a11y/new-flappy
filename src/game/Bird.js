@@ -57,6 +57,8 @@ export class Bird {
 
     this.velocityY = 0;
     this._flapTimer = 0;
+    this._diveTimer = 0;
+    this._diveBlend = 0;
 
     this.reset();
   }
@@ -64,36 +66,85 @@ export class Bird {
   reset() {
     this.mesh.position.set(0, 0, 0);
     this.mesh.rotation.set(0, Math.PI, 0);
+    this.mesh.scale.set(1, 1, 1);
     this.velocityY = 0;
     this._flapTimer = 0;
+    this._diveTimer = 0;
+    this._diveBlend = 0;
   }
 
+  /** Bate as asas — impulso pra cima. Cancela um mergulho em andamento. */
   flap() {
     this.velocityY = BIRD.FLAP_IMPULSE;
     this._flapTimer = 0.18;
+    this._diveTimer = 0;
+  }
+
+  /** Mergulha — fecha as asas e cai bem mais rápido por um tempo curto. */
+  dive() {
+    this.velocityY = BIRD.DIVE_IMPULSE;
+    this._diveTimer = BIRD.DIVE_DURATION;
+    this._flapTimer = 0;
   }
 
   /** @param {number} dt - delta de tempo em segundos */
   update(dt) {
-    this.velocityY += BIRD.GRAVITY * dt;
-    this.velocityY = THREE.MathUtils.clamp(
-      this.velocityY,
-      BIRD.MAX_FALL_SPEED,
-      BIRD.MAX_RISE_SPEED,
-    );
+    this._updatePhysics(dt);
+    this._updatePose(dt);
+  }
 
+  _updatePhysics(dt) {
+    const fallClamp = this._diveTimer > 0 ? BIRD.DIVE_MAX_FALL_SPEED : BIRD.MAX_FALL_SPEED;
+    this.velocityY += BIRD.GRAVITY * dt;
+    this.velocityY = THREE.MathUtils.clamp(this.velocityY, fallClamp, BIRD.MAX_RISE_SPEED);
     this.mesh.position.y += this.velocityY * dt;
 
-    const targetTilt = THREE.MathUtils.clamp(this.velocityY / BIRD.MAX_RISE_SPEED, -1, 1) * 0.5;
-    this.mesh.rotation.z = THREE.MathUtils.lerp(this.mesh.rotation.z, targetTilt, 8 * dt);
+    if (this._diveTimer > 0) this._diveTimer = Math.max(0, this._diveTimer - dt);
+    if (this._flapTimer > 0) this._flapTimer -= dt;
+  }
 
-    if (this._flapTimer > 0) {
-      this._flapTimer -= dt;
-      const wingFlap = Math.sin((0.18 - this._flapTimer) * 40) * 0.3;
-      this.mesh.rotation.x = wingFlap;
+  _updatePose(dt) {
+    const diving = this._diveTimer > 0;
+    this._diveBlend = THREE.MathUtils.lerp(this._diveBlend, diving ? 1 : 0, 10 * dt);
+
+    const normalTiltZ = THREE.MathUtils.clamp(this.velocityY / BIRD.MAX_RISE_SPEED, -1, 1) * 0.5;
+    this.mesh.rotation.z = THREE.MathUtils.lerp(
+      this.mesh.rotation.z,
+      normalTiltZ * (1 - this._diveBlend),
+      8 * dt,
+    );
+
+    if (this._diveBlend > 0.02) {
+      // bico pra baixo, misturando suavemente com a inclinação normal
+      this.mesh.rotation.x = THREE.MathUtils.lerp(
+        this.mesh.rotation.x,
+        BIRD.DIVE_PITCH * this._diveBlend,
+        10 * dt,
+      );
+    } else if (this._flapTimer > 0) {
+      this.mesh.rotation.x = Math.sin((0.18 - this._flapTimer) * 40) * 0.3;
     } else {
       this.mesh.rotation.x = THREE.MathUtils.lerp(this.mesh.rotation.x, 0, 8 * dt);
     }
+
+    // "Fecha as asas": silhueta mais fina e alongada durante o mergulho.
+    const scaleX = THREE.MathUtils.lerp(1, BIRD.DIVE_SCALE_X, this._diveBlend);
+    const scaleY = THREE.MathUtils.lerp(1, BIRD.DIVE_SCALE_Y, this._diveBlend);
+    this.mesh.scale.set(scaleX, scaleY, 1);
+  }
+
+  /**
+   * Reinicia velocidade e pose (flap/mergulho/rotação/escala) mantendo X/Z —
+   * usado ao continuar a partida depois de um anúncio recompensado.
+   */
+  resetPose(y = 0) {
+    this.mesh.position.y = y;
+    this.mesh.rotation.set(0, Math.PI, 0);
+    this.mesh.scale.set(1, 1, 1);
+    this.velocityY = 0;
+    this._flapTimer = 0;
+    this._diveTimer = 0;
+    this._diveBlend = 0;
   }
 
   /** Retorna a esfera de colisão atual do pássaro em coordenadas de mundo. */
