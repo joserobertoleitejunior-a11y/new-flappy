@@ -2,16 +2,17 @@ import * as THREE from "three";
 import { Bird } from "./Bird.js";
 import { CameraRig } from "./CameraRig.js";
 import { InputController } from "./InputController.js";
+import { Obstacles } from "./Obstacles.js";
 import { World } from "./World.js";
-import { GAME_STATE, WORLD } from "./constants.js";
+import { BIRD, GAME_STATE, WORLD } from "./constants.js";
 
-// Orquestra estado do jogo (menu/jogando/game over), física do pássaro e
-// câmera. Obstáculos, colisão, placar, som e ads entram em fases seguintes
-// sem precisar reescrever esta base.
+// Orquestra estado do jogo (menu/jogando/game over), física do pássaro,
+// obstáculos/colisão e câmera. Placar persistente, som e ads entram em
+// fases seguintes sem precisar reescrever esta base.
 export class GameManager {
   /**
    * @param {HTMLCanvasElement} canvas
-   * @param {{ onStateChange?: (state: string) => void }} [callbacks]
+   * @param {{ onStateChange?: (state: string) => void, onScoreChange?: (score: number) => void, onGameOver?: (score: number) => void }} [callbacks]
    */
   constructor(canvas, callbacks = {}) {
     this.canvas = canvas;
@@ -30,6 +31,7 @@ export class GameManager {
     this.world = new World(this.scene);
     this.bird = new Bird();
     this.scene.add(this.bird.mesh);
+    this.obstacles = new Obstacles(this.scene);
 
     this.cameraRig = new CameraRig(window.innerWidth / window.innerHeight);
 
@@ -40,6 +42,7 @@ export class GameManager {
     this._resize();
 
     this._distanceTraveled = 0;
+    this.score = 0;
   }
 
   _handleFlap() {
@@ -49,7 +52,10 @@ export class GameManager {
 
   start() {
     this.bird.reset();
+    this.obstacles.reset();
     this._distanceTraveled = 0;
+    this.score = 0;
+    this.callbacks.onScoreChange?.(this.score);
     this._setState(GAME_STATE.PLAYING);
   }
 
@@ -67,9 +73,27 @@ export class GameManager {
     this.callbacks.onStateChange?.(state);
   }
 
+  _gameOver() {
+    this._setState(GAME_STATE.GAME_OVER);
+    this.callbacks.onGameOver?.(this.score);
+  }
+
+  _difficultyT() {
+    return THREE.MathUtils.clamp(this._distanceTraveled / WORLD.DIFFICULTY_RAMP_DISTANCE, 0, 1);
+  }
+
   _currentForwardSpeed() {
-    const t = THREE.MathUtils.clamp(this._distanceTraveled / WORLD.DIFFICULTY_RAMP_DISTANCE, 0, 1);
-    return THREE.MathUtils.lerp(WORLD.FORWARD_SPEED_MIN, WORLD.FORWARD_SPEED_MAX, t);
+    return THREE.MathUtils.lerp(
+      WORLD.FORWARD_SPEED_MIN,
+      WORLD.FORWARD_SPEED_MAX,
+      this._difficultyT(),
+    );
+  }
+
+  _checkCollisions() {
+    const hitGround = this.bird.position.y - BIRD.RADIUS <= WORLD.GROUND_Y;
+    const hitObstacle = this.obstacles.checkCollision(this.bird.position, BIRD.RADIUS);
+    return hitGround || hitObstacle;
   }
 
   _resize() {
@@ -87,6 +111,13 @@ export class GameManager {
       const speed = this._currentForwardSpeed();
       this.bird.mesh.position.z -= speed * dt;
       this._distanceTraveled += speed * dt;
+
+      this.obstacles.update(this.bird.position.z, this._difficultyT(), () => {
+        this.score += 1;
+        this.callbacks.onScoreChange?.(this.score);
+      });
+
+      if (this._checkCollisions()) this._gameOver();
     }
 
     this.cameraRig.follow(this.bird.position, dt);

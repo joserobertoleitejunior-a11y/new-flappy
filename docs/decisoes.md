@@ -100,3 +100,60 @@ com Playwright no caminho feliz.
 mais rápido e já integrado ao Vite; Playwright entra a partir da fase em que
 o caminho feliz completo (abrir → jogar → morrer → reiniciar) existir de
 verdade (spec §9.6), evitando um teste E2E "vazio" antes da hora.
+
+---
+
+## ADR 008 — Obstáculos como pares de pilar em `InstancedMesh`, sem lateral
+
+**Contexto**: fase 2 do roadmap pede geração de obstáculos + colisão + game
+over. A mecânica descrita (§2/§3) é toque = impulso vertical, sem controle
+lateral — o pássaro sempre voa no centro da pista (x = 0).
+
+**Decisão**: cada obstáculo é um par de pilares (baixo/cima) formando um vão
+vertical, desenhado com um único `InstancedMesh` de capacidade
+`POOL_SIZE * 2` (16 instâncias) — geometria de caixa unitária com pivô na
+base, escalada por instância pra virar a altura real de cada pilar.
+Colisão simplificada: como não há movimento lateral, o teste é 1D (posição Y
+do pássaro contra o vão) mais uma faixa de profundidade em Z — sem
+precisar de raycasting nem física de corpo rígido. Object pooling
+verdadeiro: quando um obstáculo fica pra trás do pássaro além de
+`DESPAWN_DISTANCE_BEHIND`, ele é reposicionado à frente do pool (não criado
+de novo) com novo vão aleatório, escalado pela dificuldade atual.
+
+**Alternativas descartadas**: `Mesh` individual por pilar (violaria a regra
+de instancing); hierarquia de grupo por obstáculo com colisão via
+`Box3`/raycast (desnecessário dado que não há movimento lateral nem rotação
+do obstáculo).
+
+---
+
+## ADR 009 — Chão (`WORLD.GROUND_Y`) também é condição de game over
+
+**Contexto**: a spec não detalha explicitamente colisão com o chão, só com
+obstáculos. Sem ela, um jogador que nunca toca a tela cai infinitamente
+através do chão (bug visual encontrado durante o teste manual da fase 1: a
+câmera "atravessava" o plano do chão ao segui-lo pra baixo).
+
+**Decisão**: bater no nível do chão (`bird.y - RAIO <= WORLD.GROUND_Y`)
+também é game over, igual ao Flappy Bird original. `WORLD.GROUND_Y` virou
+constante compartilhada entre `World.js` (posição visual do chão) e
+`GameManager.js` (condição de colisão), pra nunca dessincronizar.
+
+---
+
+## ADR 010 — Bug de CSS corrigido: `.hidden` tinha efeito só dentro de `.screen`
+
+**Contexto**: durante o teste manual da fase 2 (Playwright headless), o botão
+"Continuar (anúncio)" apareceu visível na tela de game over mesmo tendo
+`class="hidden"` no HTML — ele deveria ficar escondido até a fase 5 (ad
+recompensado) existir de verdade.
+
+**Causa raiz**: a regra CSS era `.screen.hidden { display: none; }` (exige
+as duas classes no mesmo elemento). Botões fora de `.screen` com apenas
+`class="hidden"` não batiam no seletor.
+
+**Decisão**: trocado para uma regra utilitária genérica
+`.hidden { display: none !important; }`, reaproveitável em qualquer
+elemento (telas, botões futuros da loja/HUD). `!important` justificado aqui
+por ser uma única classe utilitária de visibilidade, não uso "em excesso"
+(padrões §3.2 proíbe abuso, não uma classe utilitária isolada).

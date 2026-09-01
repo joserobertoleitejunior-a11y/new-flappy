@@ -36,7 +36,7 @@ export class World {
     geometry.rotateX(-Math.PI / 2);
     const material = new THREE.MeshStandardMaterial({ color: 0x6ab150, flatShading: true });
     this.ground = new THREE.Mesh(geometry, material);
-    this.ground.position.set(0, -1.6, -1900);
+    this.ground.position.set(0, WORLD.GROUND_Y, -1900);
     this.scene.add(this.ground);
   }
 

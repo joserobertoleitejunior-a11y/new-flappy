@@ -79,8 +79,8 @@ body {
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
-.screen.hidden {
-  display: none;
+.hidden {
+  display: none !important;
 }
 
 .screen h1 {

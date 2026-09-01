@@ -7,6 +7,8 @@ export const WORLD = {
   DIFFICULTY_RAMP_DISTANCE: 400, // distância (unidades) até atingir dificuldade máxima
   FOG_NEAR: 18,
   FOG_FAR: 55,
+  GROUND_Y: -1.6, // altura do chão — bater aqui é game over
+  CEILING_Y: 9, // altura "invisível" onde os obstáculos terminam (escondida no fog/céu)
 };
 
 export const BIRD = {

@@ -9,7 +9,7 @@
 | Fase | Descrição | Status |
 |---|---|---|
 | 1 | Cenário 3D + pássaro com gravidade e flap | ✅ Concluída |
-| 2 | Obstáculos + colisão + game over | ⏳ Próxima |
+| 2 | Obstáculos + colisão + game over | ✅ Concluída |
 | 3 | Placar e recorde (localStorage) | ⏳ Pendente |
 | 4 | Loop de música/som | ⏳ Pendente |
 | 5 | Estrutura AdMob (interstitial + rewarded) | ⏳ Pendente |
@@ -76,6 +76,56 @@
   lógica pura suficiente pra testar unitariamente na fase 1; entram junto
   com placar (fase 3, cálculo de pontuação/recorde) e caminho feliz
   completo (fase 2 em diante).
+
+---
+
+## Fase 2 — Obstáculos + colisão + game over ✅
+
+**O que foi feito:**
+- `src/game/Obstacles.js`: pool de 8 obstáculos (16 instâncias: pilar de
+  baixo + pilar de cima por obstáculo) num único `InstancedMesh` — nunca
+  cria/destrói mesh em runtime, só reposiciona/reescala quando o pássaro
+  passa (object pooling real, spec §9.1).
+- Colisão simplificada 1D (posição vertical do pássaro contra o vão do
+  obstáculo mais atual + janela de profundidade em Z) — sem raycasting nem
+  física de corpo rígido, coerente com a mecânica (sem movimento lateral).
+- Colisão com o chão (`WORLD.GROUND_Y`) também vira game over — corrige o
+  comportamento de "cair pra sempre" observado na fase 1 quando o jogador
+  não toca a tela.
+- Dificuldade progressiva real: conforme a distância percorrida aumenta, o
+  vão dos obstáculos encolhe (`GAP_HEIGHT_START` → `GAP_HEIGHT_MIN`) e o
+  espaçamento entre eles diminui (`SPAWN_INTERVAL` → `MIN_SPAWN_INTERVAL`),
+  junto com a velocidade de avanço já implementada na fase 1.
+- `GameManager` ganhou: contagem interna de pontuação (`+1` por obstáculo
+  passado — via callback do `Obstacles.update`), método `_gameOver()` que
+  muda o estado e expõe `onGameOver(score)`, e `_checkCollisions()`
+  reunindo colisão de chão + obstáculos.
+- **Bug de CSS corrigido**: `.hidden` só funcionava combinado com `.screen`
+  — o botão de "continuar com anúncio" (fase 5) aparecia indevidamente na
+  tela de game over. Ver ADR 010.
+- Testado manualmente em navegador headless (Playwright, viewport mobile):
+  obstáculos renderizam com o vão visível, pássaro pontua ao atravessar,
+  colisão com pilar e com o chão disparam game over corretamente, telas de
+  fim de jogo/retry funcionam, nenhum erro de console.
+- Lint (Biome) limpo e build de produção validado.
+
+**Decisões tomadas sozinho** (detalhes em `docs/decisoes.md`):
+- ADR 008: obstáculos como par de pilares em `InstancedMesh`, colisão 1D
+  (sem lateral, coerente com a mecânica do jogo).
+- ADR 009: colisão com o chão também é game over.
+- ADR 010: correção do bug de CSS do `.hidden`.
+
+**O que falta / pendente:**
+- Pontuação é só contada internamente (`GameManager.score`) — ainda não
+  aparece no HUD nem é salva como recorde (isso é o objetivo da fase 3).
+- Sem som nos eventos de flap/ponto/colisão ainda (fase 4).
+- Sem ads (fase 5) — o botão "Continuar (anúncio)" já existe no HTML,
+  escondido, pronto pra ligar na fase 5.
+- Sem loja funcional (fase 6).
+- Testes automatizados (Vitest/Playwright) ainda não escritos como suíte
+  formal — a verificação desta fase foi manual via script Playwright
+  descartável. Entram na fase 3 (lógica de pontuação/recorde é a primeira
+  peça de lógica pura que vale a pena testar unitariamente).
 
 **Como rodar localmente:**
 ```bash
