@@ -157,3 +157,50 @@ as duas classes no mesmo elemento). Botões fora de `.screen` com apenas
 elemento (telas, botões futuros da loja/HUD). `!important` justificado aqui
 por ser uma única classe utilitária de visibilidade, não uso "em excesso"
 (padrões §3.2 proíbe abuso, não uma classe utilitária isolada).
+
+---
+
+## ADR 011 — Som e música 100% sintetizados via Web Audio API (sem asset de áudio)
+
+**Contexto**: fase 4 pede loop de música + efeitos de flap/ponto/colisão. O
+repositório não tem nenhum asset de áudio (só os modelos 3D da Kenney em
+`assets/models/nature/`), e não há uma conta/licença de música definida
+ainda pelo José.
+
+**Decisão**: gerar tudo via Web Audio API — efeitos (`flap`/`ponto`/
+`colisão`) como osciladores curtos com envelope (`AudioManager._blip`), e a
+música de fundo como um loop curto (8 notas, melodia simples) renderizado
+uma vez offline (`OfflineAudioContext`) e tocado em loop. Zero download de
+asset (nada trava o primeiro load — spec §9.1), zero dependência de
+licenciamento de música de terceiros. O `AudioContext` só é criado dentro
+de um gesto real do usuário (`unlock()`, chamado no primeiro toque/clique),
+respeitando a política de autoplay dos navegadores mobile.
+
+**Alternativas descartadas**: baixar/gerar arquivos MP3/OGG de bibliotecas
+de música livre — exigiria escolher uma trilha real e verificar licença,
+decisão de gosto/identidade sonora que cabe ao José revisar depois; a
+estrutura de `AudioManager` já fica pronta pra trocar a síntese por um
+`AudioBufferSourceNode` carregando um arquivo real quando ele decidir a
+trilha definitiva.
+
+**Pendente**: José pode querer trocar a música sintetizada por uma trilha
+licenciada de verdade — trocar só exige apontar `_startMusicLoop` pra
+carregar um arquivo em vez de renderizar offline.
+
+---
+
+## ADR 012 — Bug de UI corrigido: HUD (placar/botão de mudo) ficava atrás das telas
+
+**Contexto**: ao testar o novo botão de mudo (fase 4) em automação headless,
+o clique nele travava com "elemento intercepta eventos de ponteiro" sempre
+que uma tela cheia (`.screen` — menu, game over ou loja) estava visível.
+
+**Causa raiz**: `#hud` vem antes das `.screen` no HTML e nenhum dos dois
+tinha `z-index` explícito — na ordem de pilha padrão, elementos posteriores
+no DOM (as telas) desenham por cima do HUD, mesmo o HUD continuando visível
+(o painel das telas é semitransparente). O botão de mudo, mesmo com
+`pointer-events: auto`, ficava coberto pela tela por cima.
+
+**Decisão**: `#hud { z-index: 10; }` — o HUD (placar, recorde, botão de
+mudo) sempre fica acessível por cima de qualquer tela, igual à maioria dos
+jogos mobile onde o controle de som é global.

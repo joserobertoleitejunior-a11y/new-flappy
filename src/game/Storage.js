@@ -37,3 +37,11 @@ export function saveScoreIfBest(score) {
   }
   return { best: currentBest, isNewRecord: false };
 }
+
+export function getMuted() {
+  return safeGet(STORAGE_KEYS.MUTED) === "1";
+}
+
+export function setMuted(muted) {
+  safeSet(STORAGE_KEYS.MUTED, muted ? "1" : "0");
+}

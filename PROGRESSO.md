@@ -11,7 +11,7 @@
 | 1 | Cenário 3D + pássaro com gravidade e flap | ✅ Concluída |
 | 2 | Obstáculos + colisão + game over | ✅ Concluída |
 | 3 | Placar e recorde (localStorage) | ✅ Concluída |
-| 4 | Loop de música/som | ⏳ Pendente |
+| 4 | Loop de música/som | ✅ Concluída |
 | 5 | Estrutura AdMob (interstitial + rewarded) | ⏳ Pendente |
 | 6 | Loja de skins | ⏳ Pendente |
 | 7 | Ajustes finais de performance | ⏳ Pendente |
@@ -165,6 +165,49 @@
   já existem em `constants.js` mas ainda não têm leitura/escrita — entram
   nas fases 4 (mudo), 5 (contagem de game overs pro intersticial) e 6
   (skins).
+
+---
+
+## Fase 4 — Loop de música/som ✅
+
+**O que foi feito:**
+- `src/game/AudioManager.js`: música de fundo e efeitos (flap/ponto/colisão)
+  100% sintetizados via Web Audio API — sem nenhum arquivo de áudio pra
+  baixar (repositório só tinha assets 3D). `AudioContext` só é criado num
+  gesto real do usuário (`unlock()`), respeitando autoplay de navegador
+  mobile. Música: loop curto renderizado uma vez offline
+  (`OfflineAudioContext`) e tocado com `loop = true`. Efeitos: osciladores
+  curtos com envelope de volume (`_blip`).
+- Botão de mudo (🔊/🔇) no HUD, com preferência persistida em
+  `localStorage` (`STORAGE_KEYS.MUTED`, via `getMuted`/`setMuted` novas em
+  `Storage.js`).
+- `GameManager` chama `audio.playFlap()` a cada toque, `audio.playPoint()` a
+  cada obstáculo passado, `audio.playCollision()` no game over.
+- 2 novos testes unitários (`getMuted`/`setMuted` em `Storage.test.js`) —
+  suíte de testes agora com 9 casos, todos verdes.
+- **Bug de UI corrigido**: o botão de mudo ficava inacessível (cliques
+  interceptados) sempre que uma tela cheia (menu/game over/loja) estava por
+  cima, porque `#hud` não tinha `z-index` e perdia pra ordem natural do DOM.
+  Corrigido com `#hud { z-index: 10; }` — ver ADR 012.
+- Testado manualmente em navegador headless: áudio desbloqueia no primeiro
+  toque sem erro, alternar mudo funciona e persiste entre recarregamentos,
+  nenhum erro de console/Web Audio.
+- Lint, testes unitários e build de produção validados.
+
+**Decisões tomadas sozinho** (detalhes em `docs/decisoes.md`):
+- ADR 011: som/música sintetizados via Web Audio API, sem asset de terceiro
+  — evita decisão de licenciamento de trilha sem o José por perto; trocar
+  por uma trilha real depois é só apontar `_startMusicLoop` pra um arquivo.
+- ADR 012: correção do bug de z-index do HUD.
+
+**O que falta / pendente:**
+- **José**: decidir se quer trocar a música sintetizada por uma trilha
+  licenciada de verdade (a estrutura já suporta trocar depois, ver ADR 011).
+- Sem ads ainda (fase 5).
+- Sem loja funcional (fase 6) — quando skins tiverem sons próprios
+  (ex: som de compra), entram aqui.
+- `STORAGE_KEYS.GAMEOVER_COUNT` ainda não é lido/escrito — entra na fase 5
+  (contagem de game overs pro intersticial).
 
 **Como rodar localmente:**
 ```bash

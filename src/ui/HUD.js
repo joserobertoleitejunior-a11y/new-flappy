@@ -9,6 +9,7 @@ export class HUD {
     this.elBest = document.getElementById("hud-best");
     this.elGameOverScore = document.getElementById("gameover-score");
     this.elGameOverBest = document.getElementById("gameover-best");
+    this.elMuteButton = document.getElementById("btn-mute");
 
     this.screens = {
       [GAME_STATE.MENU]: document.getElementById("screen-menu"),
@@ -36,5 +37,13 @@ export class HUD {
   showGameOverSummary(score, best) {
     this.elGameOverScore.textContent = `Pontuação: ${score}`;
     this.elGameOverBest.textContent = `Recorde: ${best}`;
+  }
+
+  setMuted(muted) {
+    this.elMuteButton.textContent = muted ? "🔇" : "🔊";
+    this.elMuteButton.setAttribute(
+      "aria-label",
+      muted ? "Ativar música e efeitos" : "Silenciar música e efeitos",
+    );
   }
 }

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { AudioManager } from "./AudioManager.js";
 import { Bird } from "./Bird.js";
 import { CameraRig } from "./CameraRig.js";
 import { InputController } from "./InputController.js";
@@ -7,8 +8,8 @@ import { World } from "./World.js";
 import { BIRD, GAME_STATE, WORLD } from "./constants.js";
 
 // Orquestra estado do jogo (menu/jogando/game over), física do pássaro,
-// obstáculos/colisão e câmera. Placar persistente, som e ads entram em
-// fases seguintes sem precisar reescrever esta base.
+// obstáculos/colisão, câmera e som. Ads entram na fase seguinte sem
+// precisar reescrever esta base.
 export class GameManager {
   /**
    * @param {HTMLCanvasElement} canvas
@@ -34,6 +35,7 @@ export class GameManager {
     this.obstacles = new Obstacles(this.scene);
 
     this.cameraRig = new CameraRig(window.innerWidth / window.innerHeight);
+    this.audio = new AudioManager();
 
     this.input = new InputController(canvas, () => this._handleFlap());
 
@@ -46,11 +48,14 @@ export class GameManager {
   }
 
   _handleFlap() {
+    this.audio.unlock();
     if (this.state !== GAME_STATE.PLAYING) return;
     this.bird.flap();
+    this.audio.playFlap();
   }
 
   start() {
+    this.audio.unlock();
     this.bird.reset();
     this.obstacles.reset();
     this._distanceTraveled = 0;
@@ -74,6 +79,7 @@ export class GameManager {
   }
 
   _gameOver() {
+    this.audio.playCollision();
     this._setState(GAME_STATE.GAME_OVER);
     this.callbacks.onGameOver?.(this.score);
   }
@@ -114,6 +120,7 @@ export class GameManager {
 
       this.obstacles.update(this.bird.position.z, this._difficultyT(), () => {
         this.score += 1;
+        this.audio.playPoint();
         this.callbacks.onScoreChange?.(this.score);
       });
 

@@ -19,6 +19,7 @@ const game = new GameManager(canvas, {
 
 hud.setScore(0);
 hud.setBest(getBestScore());
+hud.setMuted(game.audio.isMuted());
 hud.showScreenForState(GAME_STATE.MENU);
 
 document.getElementById("btn-play").addEventListener("click", () => game.start());
@@ -26,6 +27,10 @@ document.getElementById("btn-retry").addEventListener("click", () => game.start(
 document.getElementById("btn-menu").addEventListener("click", () => game.returnToMenu());
 document.getElementById("btn-shop").addEventListener("click", () => game.openShop());
 document.getElementById("btn-shop-close").addEventListener("click", () => game.returnToMenu());
+document.getElementById("btn-mute").addEventListener("click", () => {
+  game.audio.unlock();
+  hud.setMuted(game.audio.toggleMuted());
+});
 
 function loop() {
   game.update();

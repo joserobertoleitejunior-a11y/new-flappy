@@ -46,6 +46,7 @@ body {
   top: env(safe-area-inset-top, 0);
   left: 0;
   right: 0;
+  z-index: 10;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -62,6 +63,24 @@ body {
 #hud-best {
   font-size: 1rem;
   opacity: 0.9;
+}
+
+.hud-right {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+#btn-mute {
+  pointer-events: auto;
+  min-width: auto;
+  padding: 0.35rem 0.55rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.18);
+  color: var(--color-text);
+  border: none;
 }
 
 .screen {

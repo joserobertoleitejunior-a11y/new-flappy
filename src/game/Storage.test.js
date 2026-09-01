@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { getBestScore, saveScoreIfBest } from "./Storage.js";
+import { getBestScore, getMuted, saveScoreIfBest, setMuted } from "./Storage.js";
 import { STORAGE_KEYS } from "./constants.js";
 
 function createMemoryStorage() {
@@ -62,5 +62,18 @@ describe("saveScoreIfBest", () => {
       },
     };
     expect(() => saveScoreIfBest(5)).not.toThrow();
+  });
+});
+
+describe("getMuted / setMuted", () => {
+  it("retorna falso por padrão (som ligado)", () => {
+    expect(getMuted()).toBe(false);
+  });
+
+  it("persiste true/false entre chamadas", () => {
+    setMuted(true);
+    expect(getMuted()).toBe(true);
+    setMuted(false);
+    expect(getMuted()).toBe(false);
   });
 });
