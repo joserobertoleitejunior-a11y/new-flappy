@@ -244,3 +244,32 @@ prontos pra José substituir quando empacotar o app.
 **Alternativas descartadas**: bloquear a fase inteira até ter uma conta
 AdMob real — contraria a instrução explícita de deixar pronto pra plugar
 depois e travaria as fases seguintes (6 e 7) sem necessidade.
+
+---
+
+## ADR 014 — Loja de skins: desbloqueio via anúncio funcional, compra em R$ como stub
+
+**Contexto**: fase 6 pede "estrutura, mesmo que só com um item". A spec §5
+prevê dois caminhos de monetização pra skin: "compra única (R$) ou
+desbloqueio via anúncio recompensado". Não existe conta/provedor de
+pagamento configurado (padrões §8 já lista isso como pendência do José em
+outro projeto da agência) — cobrar de verdade exigiria escolher um
+provedor (Stripe? Google Play Billing via Capacitor?) e credenciais reais,
+decisão de negócio que cabe ao José.
+
+**Decisão**: catálogo de 3 skins em `src/game/skins.js`
+(clássica/grátis, azul-céu/anúncio, brasa/compra) — 2 itens além da
+padrão, mais que o mínimo pedido. O caminho de anúncio recompensado
+funciona de ponta a ponta hoje (reaproveita `AdManager.showRewarded` da
+fase 5: assiste, desbloqueia, seleciona, aplica a cor no pássaro via
+`Bird.setColor`, tudo persistido em `localStorage` —
+`STORAGE_KEYS.OWNED_SKINS`/`SELECTED_SKIN`). O caminho de compra mostra o
+preço mas fica com o botão desabilitado (`title` explicando o motivo) —
+estrutura pronta (é só trocar `unlock: "purchase"` por uma chamada real
+de pagamento quando o provedor existir), sem fingir uma cobrança que não
+acontece de verdade.
+
+**Alternativas descartadas**: simular a compra também (ex.: desbloquear
+"de graça" clicando no preço) — enganoso, o botão pareceria fazer uma
+cobrança real; ligar um provedor de pagamento de verdade agora — decisão
+de negócio (custo, taxa, provedor) que não é minha pra tomar sozinho.

@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  addOwnedSkin,
   getBestScore,
   getGameOverCount,
   getMuted,
+  getOwnedSkins,
+  getSelectedSkin,
   incrementGameOverCount,
   saveScoreIfBest,
   setMuted,
+  setSelectedSkin,
 } from "./Storage.js";
 import { STORAGE_KEYS } from "./constants.js";
 
@@ -95,5 +99,38 @@ describe("getGameOverCount / incrementGameOverCount", () => {
     expect(incrementGameOverCount()).toBe(2);
     expect(incrementGameOverCount()).toBe(3);
     expect(getGameOverCount()).toBe(3);
+  });
+});
+
+describe("getOwnedSkins / addOwnedSkin", () => {
+  it("começa só com a skin padrão (classic)", () => {
+    expect(getOwnedSkins()).toEqual(["classic"]);
+  });
+
+  it("adiciona uma skin nova à lista", () => {
+    addOwnedSkin("sky");
+    expect(getOwnedSkins()).toEqual(["classic", "sky"]);
+  });
+
+  it("não duplica skin já possuída", () => {
+    addOwnedSkin("sky");
+    addOwnedSkin("sky");
+    expect(getOwnedSkins()).toEqual(["classic", "sky"]);
+  });
+
+  it("ignora JSON corrompido e volta pro padrão", () => {
+    globalThis.localStorage.setItem(STORAGE_KEYS.OWNED_SKINS, "{não é json válido");
+    expect(getOwnedSkins()).toEqual(["classic"]);
+  });
+});
+
+describe("getSelectedSkin / setSelectedSkin", () => {
+  it("começa com a skin padrão (classic) selecionada", () => {
+    expect(getSelectedSkin()).toBe("classic");
+  });
+
+  it("persiste a skin selecionada", () => {
+    setSelectedSkin("sky");
+    expect(getSelectedSkin()).toBe("sky");
   });
 });

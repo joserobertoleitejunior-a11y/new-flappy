@@ -101,6 +101,11 @@ export class Bird {
     return new THREE.Sphere(this.mesh.position, BIRD.RADIUS);
   }
 
+  /** Troca a cor do pássaro sem recriar geometria/material (troca de skin). */
+  setColor(hexColor) {
+    this.mesh.material.color.set(hexColor);
+  }
+
   get position() {
     return this.mesh.position;
   }

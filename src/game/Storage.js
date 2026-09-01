@@ -1,4 +1,5 @@
 import { STORAGE_KEYS } from "./constants.js";
+import { DEFAULT_SKIN_ID } from "./skins.js";
 
 // Wrapper de localStorage tolerante a falha (modo privado, cota cheia,
 // storage indisponível) — persistência nunca pode derrubar o jogo.
@@ -57,4 +58,32 @@ export function incrementGameOverCount() {
   const next = getGameOverCount() + 1;
   safeSet(STORAGE_KEYS.GAMEOVER_COUNT, String(next));
   return next;
+}
+
+export function getOwnedSkins() {
+  const raw = safeGet(STORAGE_KEYS.OWNED_SKINS);
+  try {
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : [DEFAULT_SKIN_ID];
+  } catch {
+    return [DEFAULT_SKIN_ID];
+  }
+}
+
+/** Adiciona uma skin à lista de skins possuídas (idempotente). Retorna a lista atualizada. */
+export function addOwnedSkin(skinId) {
+  const owned = getOwnedSkins();
+  if (!owned.includes(skinId)) {
+    owned.push(skinId);
+    safeSet(STORAGE_KEYS.OWNED_SKINS, JSON.stringify(owned));
+  }
+  return owned;
+}
+
+export function getSelectedSkin() {
+  return safeGet(STORAGE_KEYS.SELECTED_SKIN) ?? DEFAULT_SKIN_ID;
+}
+
+export function setSelectedSkin(skinId) {
+  safeSet(STORAGE_KEYS.SELECTED_SKIN, skinId);
 }

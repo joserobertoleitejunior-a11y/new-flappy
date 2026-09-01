@@ -1,14 +1,19 @@
 import "./style.css";
 import { GameManager } from "./game/GameManager.js";
-import { getBestScore, saveScoreIfBest } from "./game/Storage.js";
+import { getBestScore, getSelectedSkin, saveScoreIfBest } from "./game/Storage.js";
 import { GAME_STATE } from "./game/constants.js";
+import { DEFAULT_SKIN_ID, SKINS } from "./game/skins.js";
 import { HUD } from "./ui/HUD.js";
+import { Shop } from "./ui/Shop.js";
 
 const canvas = document.getElementById("game-canvas");
 const hud = new HUD();
 
 const game = new GameManager(canvas, {
-  onStateChange: (state) => hud.showScreenForState(state),
+  onStateChange: (state) => {
+    hud.showScreenForState(state);
+    if (state === GAME_STATE.SHOP) shop.render();
+  },
   onScoreChange: (score) => hud.setScore(score),
   onGameOver: (score) => {
     const { best } = saveScoreIfBest(score);
@@ -17,6 +22,14 @@ const game = new GameManager(canvas, {
     hud.setContinueAvailable(!game.continueUsedThisRun);
   },
 });
+
+const shop = new Shop({
+  ads: game.ads,
+  onSkinChange: (skin) => game.bird.setColor(skin.color),
+});
+
+const initialSkin = SKINS.find((skin) => skin.id === getSelectedSkin());
+game.bird.setColor((initialSkin ?? SKINS.find((skin) => skin.id === DEFAULT_SKIN_ID)).color);
 
 hud.setScore(0);
 hud.setBest(getBestScore());

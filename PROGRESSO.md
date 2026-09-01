@@ -13,7 +13,7 @@
 | 3 | Placar e recorde (localStorage) | ✅ Concluída |
 | 4 | Loop de música/som | ✅ Concluída |
 | 5 | Estrutura AdMob (interstitial + rewarded) | ✅ Concluída |
-| 6 | Loja de skins | ⏳ Pendente |
+| 6 | Loja de skins | ✅ Concluída |
 | 7 | Ajustes finais de performance | ⏳ Pendente |
 
 ---
@@ -255,6 +255,48 @@
 - Empacotamento com Capacitor em si (Android/iOS) não faz parte do roadmap
   desta sessão — segue como próximo passo natural depois da fase 7.
 - Sem loja funcional ainda (fase 6).
+
+---
+
+## Fase 6 — Loja de skins ✅
+
+**O que foi feito:**
+- `src/game/skins.js`: catálogo com 3 skins (Clássico/grátis já liberada,
+  Azul Céu/desbloqueio via anúncio, Brasa/compra R$ 2,90) — mais que o
+  mínimo de "só um item" pedido.
+- `src/ui/Shop.js`: renderiza a lista, mostra o estado de cada skin
+  (selecionada/possuída/bloqueada), aplica seleção. Reaproveita o
+  `AdManager` da fase 5 pra desbloqueio via anúncio — funciona de ponta a
+  ponta hoje.
+- `Bird.setColor(hexColor)`: troca a cor do pássaro sem recriar
+  geometria/material (evita novo draw call/mesh — mantém o orçamento de
+  performance da spec §9.1).
+- `Storage.js` ganhou `getOwnedSkins`/`addOwnedSkin`/`getSelectedSkin`/
+  `setSelectedSkin` — skins possuídas e selecionada persistem em
+  `localStorage`, sobrevivem a recarregar a página.
+- `main.js` aplica a skin salva no pássaro assim que o jogo carrega, e
+  atualiza a cor em tempo real quando o jogador troca de skin na loja.
+- 6 novos testes unitários (posse/seleção de skin, incluindo JSON
+  corrompido no storage) — suíte agora com 20 casos, todos verdes.
+- Testado manualmente em navegador headless: loja abre e lista as 3 skins
+  corretamente, desbloquear via anúncio simulado funciona (persiste,
+  seleciona, pássaro muda de cor de verdade), botão de compra fica
+  desabilitado com aviso (sem provedor de pagamento configurado).
+- Lint, testes unitários e build de produção validados.
+
+**Decisões tomadas sozinho** (detalhes em `docs/decisoes.md`, ADR 014):
+- Caminho de anúncio recompensado é 100% funcional; caminho de compra em
+  R$ fica com o botão desabilitado (preço visível, sem cobrar de verdade)
+  até existir um provedor de pagamento real — decisão de negócio do José.
+
+**O que falta / pendente:**
+- **José**: decidir/configurar um provedor de pagamento real (Stripe?
+  Google Play Billing via Capacitor, já que o app será empacotado assim?)
+  pra ativar o botão de compra da skin "Brasa" — hoje ele só mostra o
+  preço e explica por que ainda não funciona.
+- Skins são só cor sólida por enquanto — trocar por modelos/texturas
+  diferentes por skin é uma evolução futura, fora do pedido desta fase
+  ("mesmo que só com um item").
 
 **Como rodar localmente:**
 ```bash
