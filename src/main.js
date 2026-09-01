@@ -1,43 +1,31 @@
 import "./style.css";
 import { GameManager } from "./game/GameManager.js";
+import { getBestScore, saveScoreIfBest } from "./game/Storage.js";
 import { GAME_STATE } from "./game/constants.js";
+import { HUD } from "./ui/HUD.js";
 
 const canvas = document.getElementById("game-canvas");
-const screenMenu = document.getElementById("screen-menu");
-const screenGameOver = document.getElementById("screen-gameover");
-const screenShop = document.getElementById("screen-shop");
-const btnPlay = document.getElementById("btn-play");
-const btnRetry = document.getElementById("btn-retry");
-const btnMenu = document.getElementById("btn-menu");
-const btnShop = document.getElementById("btn-shop");
-const btnShopClose = document.getElementById("btn-shop-close");
-
-const SCREENS_BY_STATE = {
-  [GAME_STATE.MENU]: screenMenu,
-  [GAME_STATE.GAME_OVER]: screenGameOver,
-  [GAME_STATE.SHOP]: screenShop,
-  [GAME_STATE.PLAYING]: null,
-};
-
-function showScreenForState(state) {
-  for (const screen of [screenMenu, screenGameOver, screenShop]) {
-    screen.classList.add("hidden");
-  }
-  const active = SCREENS_BY_STATE[state];
-  if (active) active.classList.remove("hidden");
-}
+const hud = new HUD();
 
 const game = new GameManager(canvas, {
-  onStateChange: showScreenForState,
+  onStateChange: (state) => hud.showScreenForState(state),
+  onScoreChange: (score) => hud.setScore(score),
+  onGameOver: (score) => {
+    const { best } = saveScoreIfBest(score);
+    hud.showGameOverSummary(score, best);
+    hud.setBest(best);
+  },
 });
 
-btnPlay.addEventListener("click", () => game.start());
-btnRetry.addEventListener("click", () => game.start());
-btnMenu.addEventListener("click", () => game.returnToMenu());
-btnShop.addEventListener("click", () => game.openShop());
-btnShopClose.addEventListener("click", () => game.returnToMenu());
+hud.setScore(0);
+hud.setBest(getBestScore());
+hud.showScreenForState(GAME_STATE.MENU);
 
-showScreenForState(GAME_STATE.MENU);
+document.getElementById("btn-play").addEventListener("click", () => game.start());
+document.getElementById("btn-retry").addEventListener("click", () => game.start());
+document.getElementById("btn-menu").addEventListener("click", () => game.returnToMenu());
+document.getElementById("btn-shop").addEventListener("click", () => game.openShop());
+document.getElementById("btn-shop-close").addEventListener("click", () => game.returnToMenu());
 
 function loop() {
   game.update();

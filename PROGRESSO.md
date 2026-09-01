@@ -10,7 +10,7 @@
 |---|---|---|
 | 1 | Cenário 3D + pássaro com gravidade e flap | ✅ Concluída |
 | 2 | Obstáculos + colisão + game over | ✅ Concluída |
-| 3 | Placar e recorde (localStorage) | ⏳ Pendente |
+| 3 | Placar e recorde (localStorage) | ✅ Concluída |
 | 4 | Loop de música/som | ⏳ Pendente |
 | 5 | Estrutura AdMob (interstitial + rewarded) | ⏳ Pendente |
 | 6 | Loja de skins | ⏳ Pendente |
@@ -126,6 +126,45 @@
   formal — a verificação desta fase foi manual via script Playwright
   descartável. Entram na fase 3 (lógica de pontuação/recorde é a primeira
   peça de lógica pura que vale a pena testar unitariamente).
+
+---
+
+## Fase 3 — Placar e recorde em localStorage ✅
+
+**O que foi feito:**
+- `src/game/Storage.js`: wrapper de `localStorage` tolerante a falha
+  (`try/catch` em toda leitura/escrita — modo privado, cota cheia ou
+  storage indisponível nunca derruba o jogo). `getBestScore()` e
+  `saveScoreIfBest(score)` (retorna `{ best, isNewRecord }`, só grava se o
+  novo score for estritamente maior — empate não sobrescreve).
+- `src/ui/HUD.js`: camada de UI extraída do `main.js` — placar em tempo
+  real (`#hud-score`), recorde (`#hud-best`), resumo da tela de game over,
+  e troca de telas por estado do jogo. Mantém DOM fora do `GameManager`
+  (que só cuida de jogo/física/colisão), como já vinha sendo feito desde a
+  fase 1 na separação `game/` vs `ui/` da spec §7.
+- `GameManager.onScoreChange` agora liga direto no HUD a cada obstáculo
+  passado; `onGameOver` salva o recorde e atualiza os textos de resumo.
+- **Primeiros testes unitários do projeto** (padrões §3.3):
+  `src/game/Storage.test.js`, 7 casos cobrindo recorde ausente, valor salvo,
+  valor corrompido no storage, novo recorde, recorde mantido, empate, e
+  falha do storage não propagar exceção. `npm test` (Vitest) rodando verde.
+- Testado manualmente em navegador headless: placar sobe a cada obstáculo
+  passado, recorde persiste entre partidas (`localStorage`), recorde não
+  regride com pontuação menor numa partida seguinte, telas de menu/game
+  over mostram os valores corretos.
+- Lint, testes unitários e build de produção validados.
+
+**O que falta / pendente:**
+- Sem som ainda (fase 4).
+- Sem ads (fase 5) — `onContinue` (assistir anúncio pra continuar de onde
+  morreu) ainda não existe; quando a fase 5 ligar isso, o placar da run
+  atual (não só o recorde) precisa sobreviver ao "continuar".
+- Sem loja funcional (fase 6) — quando skins entrarem, o recorde deve
+  continuar por jogador/dispositivo (já é local, não por skin).
+- `STORAGE_KEYS.OWNED_SKINS`, `SELECTED_SKIN`, `MUTED` e `GAMEOVER_COUNT`
+  já existem em `constants.js` mas ainda não têm leitura/escrita — entram
+  nas fases 4 (mudo), 5 (contagem de game overs pro intersticial) e 6
+  (skins).
 
 **Como rodar localmente:**
 ```bash
