@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>New Flappy 3D</title>
+    <meta
+      name="description"
+      content="Jogo mobile estilo Flappy Bird em 3D — toque na tela para voar entre os obstáculos."
+    />
+    <meta name="theme-color" content="#7ec8f2" />
+    <script type="module" crossorigin src="./assets/index-C1Z3FdMV.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/three-HY2XLI2R.js">
+    <link rel="stylesheet" crossorigin href="./assets/index-U0ptyXvM.css">
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas" aria-label="Área do jogo New Flappy 3D"></canvas>
+
+      <video
+        id="camera-preview"
+        class="camera-preview hidden"
+        playsinline
+        muted
+        aria-hidden="true"
+      ></video>
+
+      <header id="hud" aria-live="polite">
+        <span id="hud-score">0</span>
+        <div class="hud-right">
+          <span id="hud-best">Recorde: 0</span>
+          <button id="btn-mute" type="button" aria-label="Silenciar música e efeitos">🔊</button>
+        </div>
+      </header>
+
+      <section id="screen-menu" class="screen" role="region" aria-label="Menu inicial">
+        <h1>New Flappy 3D</h1>
+        <p>
+          Toque na tela pra bater as asas. Arraste pra baixo pra mergulhar e
+          desviar dos obstáculos.
+        </p>
+        <button id="btn-play" type="button">Jogar</button>
+        <button id="btn-shop" type="button">Loja de skins</button>
+        <button
+          id="btn-camera-control"
+          type="button"
+          class="secondary"
+          aria-pressed="false"
+        >
+          🎥 Controle por câmera (experimental)
+        </button>
+        <p id="camera-status" class="camera-status hidden" role="status"></p>
+      </section>
+
+      <section id="screen-gameover" class="screen hidden" role="region" aria-label="Fim de jogo">
+        <h2>Fim de jogo</h2>
+        <p id="gameover-score">Pontuação: 0</p>
+        <p id="gameover-best">Recorde: 0</p>
+        <button id="btn-retry" type="button">Tentar de novo</button>
+        <button id="btn-continue" type="button" class="hidden">Continuar (anúncio)</button>
+        <button id="btn-menu" type="button">Menu</button>
+      </section>
+
+      <section id="screen-shop" class="screen hidden" role="region" aria-label="Loja de skins">
+        <h2>Loja de skins</h2>
+        <div id="shop-list"></div>
+        <button id="btn-shop-close" type="button">Voltar</button>
+      </section>
+    </div>
+
+  </body>
+</html>
